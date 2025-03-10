@@ -1,0 +1,31 @@
+# 编译后的二进制文件
+/tg-forward
+/bin/
+
+# 依赖目录
+/vendor/
+
+# 数据目录
+/data/
+
+# 日志文件
+*.log
+
+# 配置文件（可选，如果不想将配置文件提交到版本控制）
+# /config/config.yaml
+
+# IDE 文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Go 特定文件
+*.exe
+*.test
+*.prof
+*.out 

@@ -1,0 +1,22 @@
+[Unit]
+Description=Telegram 转发到钉钉服务
+After=network.target
+
+[Service]
+Type=simple
+User=tgforward
+Group=tgforward
+WorkingDirectory=/opt/tg-forward
+ExecStart=/opt/tg-forward/tg-forward -config /etc/tg-forward/config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# 安全设置
+ProtectSystem=full
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target 

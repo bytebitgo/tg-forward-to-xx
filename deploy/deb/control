@@ -1,0 +1,11 @@
+Package: tg-forward
+Version: 1.0.4
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.17)
+Maintainer: Developer <dev@example.com>
+Description: Telegram 转发到钉钉服务
+ 一个用 Golang 实现的应用程序，用于将 Telegram 群聊消息转发到钉钉机器人。
+ 支持处理网络超时情况，对于网络问题发送失败的消息，会暂时存入队列，
+ 等网络正常后再重新发送，程序重启后信息不会丢失。 

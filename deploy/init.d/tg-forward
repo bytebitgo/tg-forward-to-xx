@@ -1,0 +1,81 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          tg-forward
+# Required-Start:    $network $remote_fs $syslog
+# Required-Stop:     $network $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Telegram 转发到钉钉服务
+# Description:       启动和停止 Telegram 转发到钉钉服务
+### END INIT INFO
+
+# 服务配置
+NAME="tg-forward"
+DAEMON="/opt/tg-forward/tg-forward"
+DAEMON_OPTS="-config /etc/tg-forward/config.yaml"
+PIDFILE="/var/run/$NAME.pid"
+USER="tgforward"
+GROUP="tgforward"
+WORKDIR="/opt/tg-forward"
+
+# 加载 LSB 函数
+. /lib/lsb/init-functions
+
+# 检查守护进程是否存在
+if [ ! -x "$DAEMON" ]; then
+    log_failure_msg "找不到可执行文件 $DAEMON"
+    exit 1
+fi
+
+start_service() {
+    log_daemon_msg "启动 $NAME 服务"
+    start-stop-daemon --start --quiet --background --make-pidfile --pidfile $PIDFILE \
+        --chuid $USER:$GROUP --chdir $WORKDIR --exec $DAEMON -- $DAEMON_OPTS
+    log_end_msg $?
+}
+
+stop_service() {
+    log_daemon_msg "停止 $NAME 服务"
+    start-stop-daemon --stop --quiet --pidfile $PIDFILE --retry=TERM/30/KILL/5
+    RETVAL=$?
+    [ $RETVAL -eq 0 ] && rm -f $PIDFILE
+    log_end_msg $RETVAL
+    return $RETVAL
+}
+
+status_service() {
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat $PIDFILE)
+        if ps -p $PID > /dev/null; then
+            log_success_msg "$NAME 服务正在运行，PID: $PID"
+            return 0
+        else
+            log_failure_msg "$NAME 服务已停止，但 PID 文件存在"
+            return 1
+        fi
+    else
+        log_failure_msg "$NAME 服务未运行"
+        return 3
+    fi
+}
+
+case "$1" in
+    start)
+        start_service
+        ;;
+    stop)
+        stop_service
+        ;;
+    restart|force-reload)
+        stop_service && start_service
+        ;;
+    status)
+        status_service
+        ;;
+    *)
+        echo "用法: $0 {start|stop|restart|force-reload|status}"
+        exit 1
+        ;;
+esac
+
+exit 0 
