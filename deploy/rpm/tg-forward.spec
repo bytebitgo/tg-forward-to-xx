@@ -53,6 +53,9 @@ chown -R tgforward:tgforward /opt/%{name}
 chown -R tgforward:tgforward /var/lib/%{name}
 chmod 750 /opt/%{name}
 chmod 750 /var/lib/%{name}
+# 设置配置文件权限
+chmod 640 /etc/%{name}/config.yaml
+chown root:tgforward /etc/%{name}/config.yaml
 
 %preun
 %systemd_preun %{name}.service

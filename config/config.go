@@ -1,8 +1,17 @@
 package config
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+)
+
+const (
+	// DefaultConfigPath 默认配置文件路径
+	DefaultConfigPath = "/etc/tg-forward/config.yaml"
 )
 
 // Config 应用程序配置
@@ -54,8 +63,45 @@ var (
 	AppConfig Config
 )
 
+// GetConfigPath 获取配置文件路径
+func GetConfigPath() string {
+	// 1. 检查环境变量
+	if envPath := os.Getenv("TG_FORWARD_CONFIG"); envPath != "" {
+		return envPath
+	}
+
+	// 2. 检查当前目录
+	if _, err := os.Stat("config.yaml"); err == nil {
+		return "config.yaml"
+	}
+
+	// 3. 检查默认路径
+	if _, err := os.Stat(DefaultConfigPath); err == nil {
+		return DefaultConfigPath
+	}
+
+	// 4. 返回默认路径（即使不存在）
+	return DefaultConfigPath
+}
+
 // LoadConfig 从文件加载配置
 func LoadConfig(configPath string) error {
+	// 如果未指定配置文件路径，使用默认路径
+	if configPath == "" {
+		configPath = GetConfigPath()
+	}
+
+	// 确保配置文件存在
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return fmt.Errorf("配置文件不存在: %s", configPath)
+	}
+
+	// 确保配置文件目录存在
+	configDir := filepath.Dir(configPath)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return fmt.Errorf("创建配置目录失败: %v", err)
+	}
+
 	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
 
@@ -91,5 +137,6 @@ func LoadConfig(configPath string) error {
 		AppConfig.Metrics.HTTP.TLS.Port = AppConfig.Metrics.HTTP.Port // 默认使用与 HTTP 相同的端口
 	}
 
+	logrus.Infof("已加载配置文件: %s", configPath)
 	return nil
 }

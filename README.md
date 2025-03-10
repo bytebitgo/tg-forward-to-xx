@@ -79,7 +79,20 @@ docker run -v $(pwd)/config:/app/config -v $(pwd)/data:/app/data tg-forward-to-x
 
 ## 配置
 
-在运行程序前，需要先配置 `config/config.yaml` 文件：
+配置文件默认路径为 `/etc/tg-forward/config.yaml`。程序按以下顺序查找配置文件：
+
+1. 命令行参数指定的路径（`-config` 参数）
+2. 环境变量 `TG_FORWARD_CONFIG` 指定的路径
+3. 当前目录下的 `config.yaml`
+4. 默认路径 `/etc/tg-forward/config.yaml`
+
+安装包（RPM/DEB）会自动：
+- 创建配置目录 `/etc/tg-forward`
+- 安装默认配置文件到 `/etc/tg-forward/config.yaml`
+- 设置适当的文件权限（640）和所有权（root:tgforward）
+- 在 systemd/init.d 服务中使用此默认路径
+
+配置文件示例：
 
 ```yaml
 telegram:
@@ -103,9 +116,33 @@ metrics:
   interval: 60   # 收集间隔（秒）
   output_file: "./data/metrics/queue_metrics.json"  # 指标输出文件路径
   http:
-    enabled: true  # 是否启用 HTTP 服务
-    port: 9090     # HTTP 服务端口
+    enabled: true   # 是否启用 HTTP 服务
+    port: 9090      # HTTP 服务端口
     path: "/metrics"  # 指标 API 路径
+    auth: true      # 是否启用认证
+    api_key: "your-secret-api-key"  # API Key
+    header_name: "X-API-Key"  # API Key 请求头名称
+    tls:
+      enabled: true                    # 是否启用 HTTPS
+      cert_file: "./certs/server.crt"  # 证书文件路径
+      key_file: "./certs/server.key"   # 私钥文件路径
+      port: 9443                       # HTTPS 端口（可选）
+      force_https: true                # 强制使用 HTTPS
+```
+
+### 使用环境变量指定配置文件
+
+可以通过环境变量指定配置文件路径：
+
+```bash
+export TG_FORWARD_CONFIG=/path/to/your/config.yaml
+./tg-forward
+```
+
+或者在运行时指定：
+
+```bash
+TG_FORWARD_CONFIG=/path/to/your/config.yaml ./tg-forward
 ```
 
 ### 获取 Telegram Bot Token
