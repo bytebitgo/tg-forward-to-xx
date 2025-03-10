@@ -16,6 +16,170 @@
 - 支持队列指标收集，便于对接 Prometheus 监控
 - 提供 HTTP 接口暴露队列指标数据
 
+## 系统架构
+
+### 整体架构
+
+```mermaid
+graph TB
+    %% 定义子图和节点
+    subgraph 输入端
+        TG[Telegram 群组]
+    end
+
+    subgraph 核心服务
+        direction TB
+        Bot[Telegram Bot]
+        Queue[消息队列]
+        Handler[消息处理器]
+    end
+
+    subgraph 存储层
+        direction LR
+        Storage[(持久化存储)]
+    end
+
+    subgraph 监控层
+        direction TB
+        Metrics[指标收集器]
+        HTTP[HTTP/HTTPS 服务]
+    end
+
+    subgraph 输出端
+        DD[钉钉群组]
+        Prometheus[Prometheus]
+        Dashboard[监控面板]
+    end
+
+    %% 定义连接关系
+    TG -->|消息| Bot
+    Bot -->|入队| Queue
+    Queue -->|出队| Handler
+    Handler -->|转发| DD
+    
+    %% 存储相关
+    Queue -.->|持久化| Storage
+    Handler -->|失败| Queue
+    
+    %% 监控相关
+    Handler -->|指标| Metrics
+    Queue -->|状态| Metrics
+    Metrics -->|暴露| HTTP
+    HTTP -->|抓取| Prometheus
+    Prometheus -->|展示| Dashboard
+```
+
+### 消息处理流程
+
+```mermaid
+sequenceDiagram
+    participant TG as Telegram 群组
+    participant Bot as Telegram Bot
+    participant Queue as 消息队列
+    participant Storage as 存储层
+    participant Handler as 消息处理器
+    participant DD as 钉钉群组
+
+    %% 基础流程
+    TG->>Bot: 1. 发送消息
+    Bot->>Queue: 2. 消息入队
+    Queue->>Storage: 3. 持久化消息
+    Queue->>Handler: 4. 消息出队
+    
+    %% 分支处理
+    alt 4.1 发送成功
+        Handler->>DD: 转发消息
+        Handler->>Queue: 确认完成
+        Queue->>Storage: 删除消息
+    else 4.2 发送失败
+        Handler-->>Queue: 重新入队
+        Queue-->>Storage: 更新重试信息
+    end
+```
+
+### 指标收集架构
+
+```mermaid
+graph TB
+    %% 应用服务组件
+    subgraph 应用层
+        direction LR
+        Handler[消息处理器]
+        Queue[消息队列]
+    end
+
+    subgraph 指标层
+        direction TB
+        Collector[指标收集器]
+        API[HTTP/HTTPS API]
+    end
+
+    subgraph 监控层
+        direction TB
+        Prometheus[Prometheus]
+        subgraph 可视化
+            direction LR
+            Grafana[Grafana面板]
+            AlertManager[告警管理器]
+        end
+    end
+
+    %% 定义连接关系
+    Handler -->|性能数据| Collector
+    Queue -->|队列状态| Collector
+    Collector -->|格式化| API
+    API -->|暴露| Prometheus
+    Prometheus -->|展示| Grafana
+    Prometheus -->|触发| AlertManager
+```
+
+### 组件说明
+
+1. **Telegram Bot**
+   - 监听指定群组的消息
+   - 支持多群组同时监听
+   - 处理消息格式转换
+
+2. **消息队列**
+   - 支持内存队列和 LevelDB 持久化
+   - 确保消息不丢失
+   - 管理消息重试机制
+
+3. **消息处理器**
+   - 转发消息到钉钉
+   - 处理网络异常
+   - 管理重试策略
+   - 收集性能指标
+
+4. **指标系统**
+   - 收集队列状态
+   - 监控系统性能
+   - 支持 HTTP/HTTPS 访问
+   - 提供认证机制
+   - 对接 Prometheus
+
+5. **持久化存储**
+   - 使用 LevelDB 存储消息
+   - 保证程序重启后恢复
+   - 管理消息生命周期
+
+### 安全机制
+
+1. **认证**
+   - API Key 认证
+   - 可配置的请求头
+   - HTTPS 支持
+
+2. **权限控制**
+   - 最小权限原则
+   - 文件权限管理
+   - 用户隔离
+
+3. **数据保护**
+   - 消息持久化
+   - 错误恢复
+   - 安全传输
+
 ## 安装
 
 ### 使用 Makefile 安装
@@ -357,59 +521,3 @@ curl -H "X-API-Key: your-secret-key" http://your-server:9090/metrics
   "total_retry_count": 15
 }
 ```
-
-此外，还提供健康检查接口（同样需要认证）：
-
-```bash
-curl -H "X-API-Key: your-secret-key" http://your-server:9090/health
-```
-
-### 对接 Prometheus
-
-可以通过以下方式对接 Prometheus：
-
-1. **使用 HTTP 接口**：在 Prometheus 配置中添加以下内容：
-
-```yaml
-scrape_configs:
-  - job_name: 'tg-forward'
-    scrape_interval: 60s
-    metrics_path: '/metrics'
-    static_configs:
-      - targets: ['your-server:9090']
-```
-
-2. **使用文件**：如果不想暴露 HTTP 接口，可以使用 Prometheus 的 `file_sd_config` 或 `node_exporter` 的文本收集器功能读取指标文件。
-
-### 监控建议
-
-基于新增的指标，建议关注以下方面：
-
-1. **性能监控**
-   - 消息处理延迟（avg_latency_ms, p95_latency_ms）
-   - 吞吐量（throughput_per_min）
-   - 队列积压程度（queue_pressure）
-
-2. **可靠性监控**
-   - 消息处理成功率（success_rate）
-   - 平均重试次数（avg_retry_count）
-   - 失败消息数量（failed_messages）
-
-3. **容量规划**
-   - 队列大小趋势（queue_size）
-   - 处理速率（throughput_per_min）
-   - 积压程度（queue_pressure）
-
-建议设置适当的告警阈值，例如：
-- 当 P95 延迟超过 500ms
-- 当成功率低于 99%
-- 当队列积压程度超过 1.0
-- 当每分钟重试次数异常增加
-
-## 版本历史
-
-查看 [CHANGELOG.md](CHANGELOG.md) 获取版本历史。
-
-## 许可证
-
-MIT
