@@ -91,32 +91,60 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 	logrus.WithFields(logrus.Fields{
 		"chat_ids_count": len(c.chatIDs),
 		"chat_ids":       c.chatIDs,
+		"bot_username":   c.bot.Self.UserName,
+		"bot_id":         c.bot.Self.ID,
 	}).Info("👂 开始监听 Telegram 消息")
 
 	// 发送测试消息到日志
 	logrus.Info("🤖 Bot 开始工作，等待消息...")
 
 	for update := range updates {
-		logrus.Debug("📥 收到更新事件")
+		logrus.WithFields(logrus.Fields{
+			"update_id": update.UpdateID,
+			"has_message": update.Message != nil,
+			"has_edited_message": update.EditedMessage != nil,
+			"has_channel_post": update.ChannelPost != nil,
+		}).Debug("📥 收到更新事件")
 
 		if update.Message == nil {
-			logrus.Debug("⏭️ 收到非消息更新，已忽略")
+			logrus.WithFields(logrus.Fields{
+				"update_id": update.UpdateID,
+				"type": "non_message",
+			}).Debug("⏭️ 收到非消息更新，已忽略")
 			continue
 		}
 
-		// 打印详细的消息信息
-		logrus.WithFields(logrus.Fields{
-			"update_id":    update.UpdateID,
-			"chat_id":      update.Message.Chat.ID,
-			"chat_type":    update.Message.Chat.Type,
-			"chat_title":   update.Message.Chat.Title,
-			"from_id":      update.Message.From.ID,
-			"from_name":    fmt.Sprintf("%s %s", update.Message.From.FirstName, update.Message.From.LastName),
-			"from_user":    update.Message.From.UserName,
-			"message_id":   update.Message.MessageID,
-			"message_text": update.Message.Text,
-			"message_date": update.Message.Time(),
-		}).Info("📨 收到新消息")
+		// 打印更详细的消息信息
+		logFields := logrus.Fields{
+			"update_id":      update.UpdateID,
+			"message_id":     update.Message.MessageID,
+			"chat_id":        update.Message.Chat.ID,
+			"chat_type":      update.Message.Chat.Type,
+			"chat_title":     update.Message.Chat.Title,
+			"from_id":        update.Message.From.ID,
+			"from_name":      fmt.Sprintf("%s %s", update.Message.From.FirstName, update.Message.From.LastName),
+			"from_user":      update.Message.From.UserName,
+			"message_date":   update.Message.Time(),
+			"has_text":       update.Message.Text != "",
+			"text_length":    len(update.Message.Text),
+			"has_document":   update.Message.Document != nil,
+			"has_photo":      update.Message.Photo != nil,
+			"photo_count":    len(update.Message.Photo),
+			"has_video":      update.Message.Video != nil,
+			"has_audio":      update.Message.Audio != nil,
+			"has_caption":    update.Message.Caption != "",
+			"caption_length": len(update.Message.Caption),
+		}
+
+		if update.Message.Photo != nil {
+			photoSizes := make([]string, len(update.Message.Photo))
+			for i, photo := range update.Message.Photo {
+				photoSizes[i] = fmt.Sprintf("%dx%d", photo.Width, photo.Height)
+			}
+			logFields["photo_sizes"] = strings.Join(photoSizes, ", ")
+		}
+
+		logrus.WithFields(logFields).Info("📨 收到新消息")
 
 		// 检查是否是监听的聊天 ID
 		if _, ok := c.chatIDs[update.Message.Chat.ID]; !ok {
@@ -375,6 +403,7 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 		"category":     category,
 		"filename":     filename,
 		"content_type": contentType,
+		"bot_token_length": len(c.bot.Token),
 	}).Debug("开始文件处理流程")
 
 	// 1. 获取文件信息
@@ -384,30 +413,31 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id": fileID,
-			"error":   err,
+			"error":   err.Error(),
 		}).Error("获取文件信息失败")
 		return "", fmt.Errorf("获取文件信息失败: %w", err)
-	}
-
-	if file.FileSize == 0 {
-		logrus.WithField("file_id", fileID).Warn("文件大小为0，可能是无效文件")
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"file_id":   fileID,
 		"file_path": file.FilePath,
 		"file_size": file.FileSize,
+		"file_url":  file.Link(c.bot.Token),
 	}).Debug("成功获取文件信息")
 
 	// 2. 获取下载链接并下载
 	fileURL := file.Link(c.bot.Token)
-	logrus.WithField("download_url", fileURL).Debug("开始下载文件...")
+	logrus.WithFields(logrus.Fields{
+		"download_url": fileURL,
+		"file_id": fileID,
+	}).Debug("开始下载文件...")
 	
 	resp, err := utils.HTTPClient.Get(fileURL)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id": fileID,
-			"error":   err,
+			"error":   err.Error(),
+			"url":     fileURL,
 		}).Error("下载文件失败")
 		return "", fmt.Errorf("下载文件失败: %w", err)
 	}
@@ -417,22 +447,40 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 		"status_code":    resp.StatusCode,
 		"content_length": resp.ContentLength,
 		"content_type":   resp.Header.Get("Content-Type"),
+		"headers":        resp.Header,
 	}).Debug("文件下载状态")
+
+	if resp.StatusCode != 200 {
+		logrus.WithFields(logrus.Fields{
+			"status_code": resp.StatusCode,
+			"file_id":    fileID,
+		}).Error("文件下载失败，状态码非200")
+		return "", fmt.Errorf("文件下载失败，状态码: %d", resp.StatusCode)
+	}
 
 	// 3. 生成 S3 对象名称
 	timestamp := time.Now().Format("20060102150405")
 	objectName := filepath.Join(category, fmt.Sprintf("%s_%s", timestamp, filename))
 	
-	logrus.WithField("object_name", objectName).Debug("准备上传到 S3")
+	logrus.WithFields(logrus.Fields{
+		"object_name": objectName,
+		"category":    category,
+		"timestamp":   timestamp,
+		"filename":    filename,
+	}).Debug("准备上传到 S3")
 
 	// 4. 上传到 S3
-	logrus.Debug("开始上传到 S3...")
+	logrus.WithFields(logrus.Fields{
+		"object_name":  objectName,
+		"content_type": contentType,
+	}).Debug("开始上传到 S3...")
+
 	s3URL, err := c.s3Client.UploadFile(resp.Body, objectName, contentType)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id":     fileID,
 			"object_name": objectName,
-			"error":       err,
+			"error":       err.Error(),
 		}).Error("上传到 S3 失败")
 		return "", fmt.Errorf("上传到 S3 失败: %w", err)
 	}
@@ -440,7 +488,8 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 	logrus.WithFields(logrus.Fields{
 		"object_name": objectName,
 		"s3_url":     s3URL,
-	}).Debug("文件处理完成")
+		"file_id":    fileID,
+	}).Info("文件处理完成")
 
 	return s3URL, nil
 }

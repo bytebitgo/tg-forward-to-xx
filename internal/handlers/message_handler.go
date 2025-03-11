@@ -3,11 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/bot"
+	"github.com/user/tg-forward-to-xx/internal/config"
 	"github.com/user/tg-forward-to-xx/internal/metrics"
 	"github.com/user/tg-forward-to-xx/internal/models"
 	"github.com/user/tg-forward-to-xx/internal/queue"
@@ -169,15 +170,31 @@ func (h *MessageHandler) getGroupName(chat *tgbotapi.Chat) string {
 
 // processTelegramUpdates 处理 Telegram 更新
 func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel) {
+	logrus.Info("开始处理 Telegram 更新...")
+	
 	for {
 		select {
 		case update := <-updates:
 			if update.Message == nil {
+				logrus.Debug("收到非消息更新，已忽略")
 				continue
 			}
 
+			logrus.WithFields(logrus.Fields{
+				"update_id":   update.UpdateID,
+				"message_id":  update.Message.MessageID,
+				"chat_id":    update.Message.Chat.ID,
+				"chat_title": update.Message.Chat.Title,
+				"from_user":  update.Message.From.UserName,
+				"has_photo":  len(update.Message.Photo) > 0,
+				"has_document": update.Message.Document != nil,
+				"has_video":   update.Message.Video != nil,
+				"has_audio":   update.Message.Audio != nil,
+			}).Debug("收到新消息")
+
 			// 检查是否是目标群组的消息
 			if !h.isTargetChat(update.Message.Chat.ID) {
+				logrus.WithField("chat_id", update.Message.Chat.ID).Debug("非目标群组消息，已忽略")
 				continue
 			}
 
@@ -195,15 +212,150 @@ func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel)
 			}
 
 			if err := h.storage.SaveMessage(history); err != nil {
-				logrus.Errorf("保存聊天记录失败: %v", err)
+				logrus.WithError(err).Error("保存聊天记录失败")
 			}
 
-			// 转发消息到钉钉
-			if err := h.forwardToDingTalk(update.Message); err != nil {
-				logrus.Errorf("转发消息失败: %v", err)
+			// 构建消息内容
+			var content string
+			var fileURL string
+
+			// 处理不同类型的消息
+			switch {
+			case len(update.Message.Photo) > 0:
+				logrus.Debug("处理图片消息")
+				// 获取最大尺寸的图片
+				photo := update.Message.Photo[len(update.Message.Photo)-1]
+				file, err := h.bot.GetFile(tgbotapi.FileConfig{FileID: photo.FileID})
+				if err != nil {
+					logrus.WithError(err).Error("获取图片文件信息失败")
+				} else {
+					// 下载文件并上传到 S3
+					fileURL, err = h.downloadAndUploadToS3(file, "photos", "image.jpg")
+					if err != nil {
+						logrus.WithError(err).Error("处理图片文件失败")
+					} else {
+						logrus.WithField("s3_url", fileURL).Debug("获取到 S3 图片 URL")
+					}
+				}
+				content = "[图片]"
+				if update.Message.Caption != "" {
+					content = fmt.Sprintf("[图片] %s", update.Message.Caption)
+				}
+
+			case update.Message.Document != nil:
+				logrus.Debug("处理文档消息")
+				file, err := h.bot.GetFile(tgbotapi.FileConfig{FileID: update.Message.Document.FileID})
+				if err != nil {
+					logrus.WithError(err).Error("获取文档文件信息失败")
+				} else {
+					// 下载文件并上传到 S3
+					fileURL, err = h.downloadAndUploadToS3(file, "documents", update.Message.Document.FileName)
+					if err != nil {
+						logrus.WithError(err).Error("处理文档文件失败")
+					} else {
+						logrus.WithField("s3_url", fileURL).Debug("获取到 S3 文档 URL")
+					}
+				}
+				content = fmt.Sprintf("[文档: %s]", update.Message.Document.FileName)
+				if update.Message.Caption != "" {
+					content = fmt.Sprintf("[文档: %s] %s", update.Message.Document.FileName, update.Message.Caption)
+				}
+
+			case update.Message.Video != nil:
+				logrus.Debug("处理视频消息")
+				file, err := h.bot.GetFile(tgbotapi.FileConfig{FileID: update.Message.Video.FileID})
+				if err != nil {
+					logrus.WithError(err).Error("获取视频文件信息失败")
+				} else {
+					// 下载文件并上传到 S3
+					fileURL, err = h.downloadAndUploadToS3(file, "videos", "video.mp4")
+					if err != nil {
+						logrus.WithError(err).Error("处理视频文件失败")
+					} else {
+						logrus.WithField("s3_url", fileURL).Debug("获取到 S3 视频 URL")
+					}
+				}
+				content = "[视频]"
+				if update.Message.Caption != "" {
+					content = fmt.Sprintf("[视频] %s", update.Message.Caption)
+				}
+
+			case update.Message.Audio != nil:
+				logrus.Debug("处理音频消息")
+				file, err := h.bot.GetFile(tgbotapi.FileConfig{FileID: update.Message.Audio.FileID})
+				if err != nil {
+					logrus.WithError(err).Error("获取音频文件信息失败")
+				} else {
+					// 下载文件并上传到 S3
+					fileURL, err = h.downloadAndUploadToS3(file, "audios", "audio.mp3")
+					if err != nil {
+						logrus.WithError(err).Error("处理音频文件失败")
+					} else {
+						logrus.WithField("s3_url", fileURL).Debug("获取到 S3 音频 URL")
+					}
+				}
+				content = "[音频]"
+				if update.Message.Caption != "" {
+					content = fmt.Sprintf("[音频] %s", update.Message.Caption)
+				}
+
+			case update.Message.Text != "":
+				content = update.Message.Text
+			default:
+				content = "[不支持的消息类型]"
+			}
+
+			// 构建发送者信息
+			var sender string
+			if update.Message.From.UserName != "" {
+				sender = "@" + update.Message.From.UserName
+			} else {
+				sender = update.Message.From.FirstName
+				if update.Message.From.LastName != "" {
+					sender += " " + update.Message.From.LastName
+				}
+			}
+
+			// 如果有文件 URL，使用 markdown 格式
+			if fileURL != "" {
+				content = fmt.Sprintf("### 【%s】[%s]\n%s\n![预览](%s)", 
+					groupName, 
+					sender, 
+					content,
+					fileURL,
+				)
+			} else {
+				content = fmt.Sprintf("【%s】[%s]\n%s", groupName, sender, content)
+			}
+
+			// 创建消息对象
+			msg := &models.Message{
+				ID:        fmt.Sprintf("%d", update.Message.MessageID),
+				Content:   content,
+				From:     sender,
+				ChatID:   update.Message.Chat.ID,
+				ChatTitle: groupName,
+				CreatedAt: time.Now(),
+				IsMarkdown: fileURL != "", // 添加标记表示是否为 markdown 格式
+			}
+
+			// 发送到消息通道
+			select {
+			case h.msgChan <- msg:
+				logrus.WithFields(logrus.Fields{
+					"message_id": msg.ID,
+					"chat_id":   msg.ChatID,
+					"has_file":  fileURL != "",
+				}).Debug("消息已加入处理队列")
+			default:
+				logrus.WithFields(logrus.Fields{
+					"message_id": msg.ID,
+					"chat_id":   msg.ChatID,
+				}).Warn("消息通道已满，消息可能丢失")
 			}
 
 		case <-h.stopChan:
+			logrus.Info("收到停止信号，停止处理 Telegram 更新")
 			return
 		}
 	}
@@ -385,4 +537,49 @@ func (h *MessageHandler) sendToDingTalk(msg *models.Message) error {
 	}
 
 	return err
+}
+
+// 添加 downloadAndUploadToS3 函数
+func (h *MessageHandler) downloadAndUploadToS3(file tgbotapi.File, category, filename string) (string, error) {
+	logrus.WithFields(logrus.Fields{
+		"file_id":   file.FileID,
+		"category":  category,
+		"filename":  filename,
+	}).Debug("开始下载并上传文件到 S3")
+
+	// 创建 S3 客户端
+	s3Client, err := storage.NewS3Client()
+	if err != nil {
+		return "", fmt.Errorf("创建 S3 客户端失败: %w", err)
+	}
+
+	// 下载文件
+	fileURL := file.Link(config.AppConfig.Telegram.Token)
+	resp, err := http.Get(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("下载文件失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("下载文件失败，状态码: %d", resp.StatusCode)
+	}
+
+	// 生成唯一的对象名称
+	timestamp := time.Now().Format("20060102150405")
+	objectName := fmt.Sprintf("%s/%s_%s", category, timestamp, filename)
+
+	// 上传到 S3
+	s3URL, err := s3Client.UploadFile(resp.Body, objectName, resp.Header.Get("Content-Type"))
+	if err != nil {
+		return "", fmt.Errorf("上传到 S3 失败: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"file_id":     file.FileID,
+		"object_name": objectName,
+		"s3_url":      s3URL,
+	}).Debug("文件已成功上传到 S3")
+
+	return s3URL, nil
 }

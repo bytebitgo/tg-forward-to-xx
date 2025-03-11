@@ -15,6 +15,7 @@ type Message struct {
 	CreatedAt   time.Time `json:"created_at"`   // 创建时间
 	Attempts    int       `json:"attempts"`     // 尝试次数
 	LastAttempt time.Time `json:"last_attempt"` // 最后一次尝试时间
+	IsMarkdown  bool      `json:"is_markdown"`  // 是否为 markdown 格式
 }
 
 // NewMessage 创建一个新的消息

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,8 +11,8 @@ import (
 	"syscall"
 
 	"github.com/sirupsen/logrus"
-	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/api"
+	"github.com/user/tg-forward-to-xx/internal/config"
 	"github.com/user/tg-forward-to-xx/internal/handlers"
 	"github.com/user/tg-forward-to-xx/internal/queue"
 	"github.com/user/tg-forward-to-xx/internal/storage"
@@ -108,6 +109,42 @@ func main() {
 		logrus.Fatalf("无效的日志级别: %v", err)
 	}
 	logrus.SetLevel(level)
+
+	// 配置日志输出
+	if config.AppConfig.Log.FilePath != "" {
+		// 确保日志目录存在
+		logDir := filepath.Dir(config.AppConfig.Log.FilePath)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			logrus.Fatalf("创建日志目录失败: %v", err)
+		}
+
+		// 打开日志文件
+		logFile, err := os.OpenFile(config.AppConfig.Log.FilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			logrus.Fatalf("打开日志文件失败: %v", err)
+		}
+
+		// 创建多输出写入器
+		mw := io.MultiWriter(os.Stdout, logFile)
+		logrus.SetOutput(mw)
+	} else {
+		// 如果未配置日志文件路径，使用默认路径
+		defaultLogPath := "/var/log/tg-forward/main.log"
+		logDir := filepath.Dir(defaultLogPath)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			logrus.Fatalf("创建默认日志目录失败: %v", err)
+		}
+
+		// 打开默认日志文件
+		logFile, err := os.OpenFile(defaultLogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			logrus.Fatalf("打开默认日志文件失败: %v", err)
+		}
+
+		// 创建多输出写入器
+		mw := io.MultiWriter(os.Stdout, logFile)
+		logrus.SetOutput(mw)
+	}
 
 	// 显示版本信息
 	if showVersion {

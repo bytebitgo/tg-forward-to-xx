@@ -1,7 +1,7 @@
 # 编译后的二进制文件
 /tg-forward
 /bin/
-
+env.yaml
 # 依赖目录
 /vendor/
 
