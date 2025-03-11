@@ -89,8 +89,14 @@ func main() {
 	}
 	defer chatHistoryStorage.Close()
 
+	// 创建消息队列
+	messageQueue, err := createQueue()
+	if err != nil {
+		logrus.Fatalf("创建消息队列失败: %v", err)
+	}
+
 	// 创建消息处理器
-	messageHandler, err := handlers.NewMessageHandler(chatHistoryStorage)
+	messageHandler, err := handlers.NewMessageHandler(messageQueue, chatHistoryStorage)
 	if err != nil {
 		logrus.Fatalf("创建消息处理器失败: %v", err)
 	}
