@@ -87,9 +87,9 @@ func main() {
 		}
 
 		// 检查消息内容是否需要处理
-		sanitizedContent := sanitizeMessage(message.Content)
-		if sanitizedContent != message.Content {
-			message.Content = sanitizedContent
+		sanitizedText := sanitizeMessage(message.Text)
+		if sanitizedText != message.Text {
+			message.Text = sanitizedText
 			needsUpdate = true
 		}
 
