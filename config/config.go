@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -84,59 +85,77 @@ func GetConfigPath() string {
 	return DefaultConfigPath
 }
 
-// LoadConfig 从文件加载配置
+// LoadConfig 加载配置文件
 func LoadConfig(configPath string) error {
-	// 如果未指定配置文件路径，使用默认路径
-	if configPath == "" {
-		configPath = GetConfigPath()
-	}
-
-	// 确保配置文件存在
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return fmt.Errorf("配置文件不存在: %s", configPath)
-	}
-
-	// 确保配置文件目录存在
-	configDir := filepath.Dir(configPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("创建配置目录失败: %v", err)
-	}
+	logrus.WithField("path", configPath).Info("正在加载配置文件")
 
 	viper.SetConfigFile(configPath)
-	viper.SetConfigType("yaml")
-
 	if err := viper.ReadInConfig(); err != nil {
-		logrus.Errorf("无法读取配置文件: %v", err)
-		return err
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
 
 	if err := viper.Unmarshal(&AppConfig); err != nil {
-		logrus.Errorf("无法解析配置: %v", err)
-		return err
+		return fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
-	// 设置默认值
-	if AppConfig.Metrics.Interval <= 0 {
-		AppConfig.Metrics.Interval = 60 // 默认 60 秒
+	// 验证必要的配置项
+	if err := validateConfig(); err != nil {
+		return fmt.Errorf("配置验证失败: %w", err)
 	}
 
-	if AppConfig.Metrics.HTTP.Port <= 0 {
-		AppConfig.Metrics.HTTP.Port = 9090 // 默认端口 9090
-	}
+	logrus.WithFields(logrus.Fields{
+		"telegram_token":     maskToken(AppConfig.Telegram.Token),
+		"telegram_chat_ids": AppConfig.Telegram.ChatIDs,
+		"dingtalk_webhook": maskURL(AppConfig.DingTalk.WebhookURL),
+		"dingtalk_secret": maskToken(AppConfig.DingTalk.Secret),
+		"queue_type":      AppConfig.Queue.Type,
+		"queue_path":      AppConfig.Queue.Path,
+	}).Info("配置加载完成")
 
-	if AppConfig.Metrics.HTTP.Path == "" {
-		AppConfig.Metrics.HTTP.Path = "/metrics" // 默认路径 /metrics
-	}
-
-	if AppConfig.Metrics.HTTP.HeaderName == "" {
-		AppConfig.Metrics.HTTP.HeaderName = "X-API-Key" // 默认 API Key 请求头名称
-	}
-
-	// 设置 HTTPS 默认值
-	if AppConfig.Metrics.HTTP.TLS.Enabled && AppConfig.Metrics.HTTP.TLS.Port <= 0 {
-		AppConfig.Metrics.HTTP.TLS.Port = AppConfig.Metrics.HTTP.Port // 默认使用与 HTTP 相同的端口
-	}
-
-	logrus.Infof("已加载配置文件: %s", configPath)
 	return nil
+}
+
+// validateConfig 验证配置是否完整
+func validateConfig() error {
+	if AppConfig.Telegram.Token == "" {
+		return fmt.Errorf("Telegram Bot Token 未配置")
+	}
+
+	if len(AppConfig.Telegram.ChatIDs) == 0 {
+		logrus.Warn("未配置任何 Telegram 聊天 ID，机器人将不会转发任何消息")
+	}
+
+	if AppConfig.DingTalk.WebhookURL == "" {
+		return fmt.Errorf("钉钉 Webhook URL 未配置")
+	}
+
+	if AppConfig.Queue.Type != "memory" && AppConfig.Queue.Type != "leveldb" {
+		return fmt.Errorf("不支持的队列类型: %s，支持的类型: memory, leveldb", AppConfig.Queue.Type)
+	}
+
+	if AppConfig.Queue.Type == "leveldb" && AppConfig.Queue.Path == "" {
+		return fmt.Errorf("使用 LevelDB 队列时必须配置存储路径")
+	}
+
+	return nil
+}
+
+// maskToken 对敏感信息进行掩码处理
+func maskToken(token string) string {
+	if len(token) <= 8 {
+		return "***"
+	}
+	return token[:4] + "..." + token[len(token)-4:]
+}
+
+// maskURL 对 URL 进行掩码处理
+func maskURL(urlStr string) string {
+	if urlStr == "" {
+		return ""
+	}
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "invalid-url"
+	}
+	return fmt.Sprintf("%s://%s/***", u.Scheme, u.Host)
 }
