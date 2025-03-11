@@ -8,6 +8,7 @@ dingtalk:
   enable_at: false  # 是否启用 @ 功能
   at_mobiles: ["13800138000", "13900139000"]  # 需要 @ 的手机号列表
   is_at_all: false  # 是否 @ 所有人
+  notify_verbose: false  # 是否显示详细信息，设为 false 则只显示消息类型提醒
 
 log:
   level: "debug"  # 日志级别：debug, info, warn, error

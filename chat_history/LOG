@@ -111,3 +111,70 @@
 16:11:20.563465 version@stat F·[3 3] S·1KiB[1KiB 880B] Sc·[0.75 0.00]
 16:12:10.184140 db@close closing
 16:12:10.184267 db@close done T·124µs
+=============== Mar 11, 2025 (CST) ===============
+16:16:56.988463 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:16:56.988705 version@stat F·[3 3] S·1KiB[1KiB 880B] Sc·[0.75 0.00]
+16:16:56.988713 db@open opening
+16:16:56.988748 journal@recovery F·1
+16:16:56.988907 journal@recovery recovering @24
+16:16:56.995127 memdb@flush created L0@26 N·1 S·273B "\xff\xff\xff..<0\x00,v16":"\xff\xff\xff..<0\x00,v16"
+16:16:56.995554 version@stat F·[4 3] S·2KiB[1KiB 880B] Sc·[1.00 0.00]
+16:16:57.013737 db@janitor F·9 G·0
+16:16:57.013773 db@open done T·25.053ms
+16:16:57.013848 table@move L0@26 -> L1
+16:16:57.014157 version@stat F·[3 4] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:17:53.764162 db@close closing
+16:17:53.764238 db@close done T·69.458µs
+=============== Mar 11, 2025 (CST) ===============
+16:19:05.668022 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:19:05.668464 version@stat F·[3 4] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:19:05.668473 db@open opening
+16:19:05.668521 journal@recovery F·1
+16:19:05.669010 journal@recovery recovering @27
+16:19:05.682227 memdb@flush created L0@29 N·1 S·273B "\xff\xff\xff..kB\x00,v18":"\xff\xff\xff..kB\x00,v18"
+16:19:05.682412 version@stat F·[4 4] S·2KiB[1KiB 1KiB] Sc·[1.00 0.00]
+16:19:05.702664 db@janitor F·10 G·0
+16:19:05.702703 db@open done T·34.2225ms
+16:19:05.702912 table@move L0@29 -> L1
+16:19:05.703066 version@stat F·[3 5] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:19:55.146234 db@close closing
+16:19:55.146312 db@close done T·76.459µs
+=============== Mar 11, 2025 (CST) ===============
+16:20:06.660809 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:20:06.661377 version@stat F·[3 5] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:20:06.661398 db@open opening
+16:20:06.661479 journal@recovery F·1
+16:20:06.661953 journal@recovery recovering @30
+16:20:06.669492 memdb@flush created L0@32 N·2 S·345B "\xff\xff\xff..\xf4\x00\x00,v20":"\xff\xff\xff..\xe2\x18\x00,v21"
+16:20:06.669687 version@stat F·[4 5] S·2KiB[1KiB 1KiB] Sc·[1.00 0.00]
+16:20:06.683821 db@janitor F·11 G·0
+16:20:06.683873 db@open done T·22.466917ms
+16:20:06.684097 table@move L0@32 -> L1
+16:20:06.684344 version@stat F·[3 6] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:20:59.313511 db@close closing
+16:20:59.313696 db@close done T·184.166µs
+=============== Mar 11, 2025 (CST) ===============
+16:21:25.680397 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:21:25.680868 version@stat F·[3 6] S·2KiB[1KiB 1KiB] Sc·[0.75 0.00]
+16:21:25.680882 db@open opening
+16:21:25.680949 journal@recovery F·1
+16:21:25.681391 journal@recovery recovering @33
+16:21:25.689396 memdb@flush created L0@35 N·2 S·341B "\xff\xff\xff..\xed\xea\x00,v23":"\xff\xff\xff..\xd0\x1e\x00,v24"
+16:21:25.689640 version@stat F·[4 6] S·3KiB[1KiB 1KiB] Sc·[1.00 0.00]
+16:21:25.706606 db@janitor F·12 G·0
+16:21:25.706650 db@open done T·25.759292ms
+16:21:25.706764 table@move L0@35 -> L1
+16:21:25.707090 version@stat F·[3 7] S·3KiB[1KiB 2KiB] Sc·[0.75 0.00]
+16:21:58.910484 db@close closing
+16:21:58.910586 db@close done T·100.375µs
+=============== Mar 11, 2025 (CST) ===============
+16:22:12.157809 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+16:22:12.158317 version@stat F·[3 7] S·3KiB[1KiB 2KiB] Sc·[0.75 0.00]
+16:22:12.158329 db@open opening
+16:22:12.158389 journal@recovery F·1
+16:22:12.158551 journal@recovery recovering @36
+16:22:12.159083 version@stat F·[3 7] S·3KiB[1KiB 2KiB] Sc·[0.75 0.00]
+16:22:12.175216 db@janitor F·12 G·0
+16:22:12.175264 db@open done T·16.927666ms
+16:22:26.771952 db@close closing
+16:22:26.772122 db@close done T·165.042µs

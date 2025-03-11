@@ -68,7 +68,15 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 	if msg.IsMarkdown {
 		// Markdown 格式消息
 		messageTitle := fmt.Sprintf("%s图片消息", senderInfo)
-		messageContent := fmt.Sprintf("### %s\n%s", messageTitle, msg.Content)
+		var messageContent string
+		
+		if config.AppConfig.DingTalk.NotifyVerbose {
+			// 详细模式：显示完整消息内容
+			messageContent = fmt.Sprintf("### %s\n%s", messageTitle, msg.Content)
+		} else {
+			// 简略模式：只显示消息类型
+			messageContent = fmt.Sprintf("### %s", messageTitle)
+		}
 
 		data = map[string]interface{}{
 			"msgtype": "markdown",
@@ -99,7 +107,14 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 			messageType = "贴纸消息"
 		}
 
-		content := fmt.Sprintf("%s%s：\n%s", senderInfo, messageType, msg.Content)
+		var content string
+		if config.AppConfig.DingTalk.NotifyVerbose {
+			// 详细模式：显示完整消息内容
+			content = fmt.Sprintf("%s%s：\n%s", senderInfo, messageType, msg.Content)
+		} else {
+			// 简略模式：只显示消息类型
+			content = fmt.Sprintf("%s%s", senderInfo, messageType)
+		}
 
 		// 只有在启用 @ 功能时才添加 @ 信息
 		if config.AppConfig.DingTalk.EnableAt && len(c.atMobiles) > 0 {

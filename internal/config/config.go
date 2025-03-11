@@ -61,11 +61,12 @@ type LogConfig struct {
 
 // DingTalkConfig 钉钉机器人配置
 type DingTalkConfig struct {
-	WebhookURL string   `mapstructure:"webhook_url"` // Webhook URL
-	Secret     string   `mapstructure:"secret"`      // 签名密钥
-	EnableAt   bool     `mapstructure:"enable_at"`   // 是否启用 @ 功能
-	AtMobiles  []string `mapstructure:"at_mobiles"` // 需要 @ 的手机号列表
-	IsAtAll    bool     `mapstructure:"is_at_all"`  // 是否 @ 所有人
+	WebhookURL    string   `mapstructure:"webhook_url"`    // Webhook URL
+	Secret        string   `mapstructure:"secret"`         // 签名密钥
+	EnableAt      bool     `mapstructure:"enable_at"`      // 是否启用 @ 功能
+	AtMobiles     []string `mapstructure:"at_mobiles"`     // 需要 @ 的手机号列表
+	IsAtAll       bool     `mapstructure:"is_at_all"`      // 是否 @ 所有人
+	NotifyVerbose bool     `mapstructure:"notify_verbose"` // 是否显示详细信息
 }
 
 // QueueConfig 队列配置
