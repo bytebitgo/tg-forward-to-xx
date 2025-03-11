@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
 )
@@ -44,9 +45,46 @@ func createLevelDBQueue() (Queue, error) {
 		return nil, fmt.Errorf("创建队列目录失败: %w", err)
 	}
 
-	db, err := leveldb.OpenFile(queuePath, nil)
+	// 检查目录权限
+	dirInfo, err := os.Stat(filepath.Dir(queuePath))
 	if err != nil {
-		return nil, fmt.Errorf("打开 LevelDB 失败: %w", err)
+		return nil, fmt.Errorf("检查队列目录状态失败: %w", err)
+	}
+	
+	// 检查目录权限模式
+	dirMode := dirInfo.Mode()
+	if dirMode.Perm()&0700 != 0700 {
+		return nil, fmt.Errorf("队列目录权限不足: %v", dirMode)
+	}
+
+	// 检查是否已有进程使用该数据库
+	lockFile := filepath.Join(queuePath, "LOCK")
+	if _, err := os.Stat(lockFile); err == nil {
+		// 尝试打开锁文件，如果能打开则说明没有其他进程正在使用
+		if file, err := os.OpenFile(lockFile, os.O_RDWR, 0666); err != nil {
+			return nil, fmt.Errorf("数据库可能被其他进程锁定: %w", err)
+		} else {
+			file.Close()
+		}
+	}
+
+	// 打开 LevelDB 数据库，添加更多选项以提高稳定性
+	options := &opt.Options{
+		ErrorIfExist:   false,
+		ErrorIfMissing: false,
+	}
+	
+	db, err := leveldb.OpenFile(queuePath, options)
+	if err != nil {
+		// 如果打开失败，尝试清理可能的损坏文件
+		if err == leveldb.ErrCorrupted {
+			db, err = leveldb.RecoverFile(queuePath, nil)
+			if err != nil {
+				return nil, fmt.Errorf("恢复损坏的 LevelDB 失败: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("打开 LevelDB 失败: %w", err)
+		}
 	}
 
 	queue := &LevelDBQueue{

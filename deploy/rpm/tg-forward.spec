@@ -1,3 +1,4 @@
+%define debug_package %{nil}
 Name:           tg-forward
 Version:        1.0.4
 Release:        1%{?dist}

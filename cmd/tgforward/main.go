@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 var (
 	configPath = flag.String("config", "config/config.yaml", "配置文件路径")
 	logLevel   = flag.String("log-level", "info", "日志级别 (debug, info, warn, error)")
-	version    = "1.0.4" // 版本号
+	version    = "1.0.5" // 版本号
 )
 
 func main() {
@@ -104,15 +105,44 @@ func setLogLevel(level string) {
 // 创建队列
 func createQueue() (queue.Queue, error) {
 	queueType := config.AppConfig.Queue.Type
-
-	// 初始化内存队列
-	if _, err := queue.NewMemoryQueue(); err != nil {
-		return nil, fmt.Errorf("初始化内存队列失败: %v", err)
+	logrus.Infof("配置的队列类型: %s", queueType)
+	
+	// 检查队列路径
+	if queueType == "leveldb" {
+		queuePath := config.AppConfig.Queue.Path
+		logrus.Infof("LevelDB 队列路径: %s", queuePath)
+		
+		// 检查目录是否存在
+		dirPath := filepath.Dir(queuePath)
+		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+			logrus.Warnf("队列目录不存在，将尝试创建: %s", dirPath)
+		}
+		
+		// 检查目录权限
+		if info, err := os.Stat(dirPath); err == nil {
+			logrus.Infof("队列目录权限: %v", info.Mode())
+		}
 	}
 
+	// 初始化内存队列
+	memQueue, err := queue.NewMemoryQueue()
+	if err != nil {
+		return nil, fmt.Errorf("初始化内存队列失败: %v", err)
+	}
+	logrus.Debug("内存队列初始化成功")
+
 	// 初始化 LevelDB 队列
-	if _, err := queue.NewLevelDBQueue(); err != nil {
-		return nil, fmt.Errorf("初始化 LevelDB 队列失败: %v", err)
+	_, err = queue.NewLevelDBQueue()
+	if err != nil {
+		logrus.Errorf("初始化 LevelDB 队列失败: %v", err)
+		
+		// 如果配置的是 LevelDB 队列但初始化失败，自动切换到内存队列
+		if queueType == "leveldb" {
+			logrus.Warnf("自动切换到内存队列作为备用方案")
+			return memQueue, nil
+		}
+	} else {
+		logrus.Debug("LevelDB 队列初始化成功")
 	}
 
 	// 创建指定类型的队列

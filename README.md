@@ -1,5 +1,7 @@
 # Telegram 转发到钉钉
 
+![版本](https://img.shields.io/badge/版本-1.0.5-blue.svg)
+
 一个用 Golang 实现的应用程序，用于将 Telegram 群聊消息转发到钉钉机器人。
 
 **当前版本：v1.0.4**
@@ -521,3 +523,20 @@ curl -H "X-API-Key: your-secret-key" http://your-server:9090/metrics
   "total_retry_count": 15
 }
 ```
+
+## 注意事项
+
+### LevelDB 队列
+
+如果使用 LevelDB 队列类型，请确保：
+
+1. 应用程序对队列目录有足够的读写权限
+2. 队列目录所在的磁盘有足够的空间
+3. 没有其他进程正在使用同一个 LevelDB 数据库
+4. 如果遇到"resource temporarily unavailable"错误，可以尝试：
+   - 检查目录权限
+   - 确保没有其他实例正在运行
+   - 删除队列目录中的 LOCK 文件（确保没有实例在运行的情况下）
+   - 切换到内存队列类型（在配置文件中设置 `queue.type: "memory"`）
+
+从 v1.0.5 版本开始，当 LevelDB 队列创建失败时，程序会自动切换到内存队列作为备用方案。
