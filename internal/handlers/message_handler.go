@@ -254,7 +254,7 @@ func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
 
 	// 转换为钉钉消息格式
 	msg := &models.Message{
-		ID:      message.MessageID,
+		ID:      fmt.Sprintf("%d", message.MessageID), // 将 int 转换为 string
 		ChatID:  message.Chat.ID,
 		From:    sender,
 		Content: content,
