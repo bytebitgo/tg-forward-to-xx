@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -119,16 +120,8 @@ func main() {
 		}
 		defer logFile.Close()
 
-		// 为文件输出创建一个新的 logger
-		fileLogger := logrus.New()
-		fileLogger.SetFormatter(formatter)
-		fileLogger.SetLevel(level)
-		fileLogger.SetOutput(logFile)
-
-		// 创建一个 hook 来同时写入文件
-		logrus.AddHook(&fileHook{
-			logger: fileLogger,
-		})
+		// 创建一个多重输出，同时写入文件和控制台
+		logrus.SetOutput(io.MultiWriter(os.Stdout, logFile))
 	}
 
 	// 打印启动信息
