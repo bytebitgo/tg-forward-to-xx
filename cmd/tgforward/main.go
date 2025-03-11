@@ -16,7 +16,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config/config.yaml", "配置文件路径")
-	logLevel   = flag.String("log-level", "info", "日志级别 (debug, info, warn, error)")
+	logLevel   = flag.String("log-level", "debug", "日志级别 (debug, info, warn, error)")
 	version    = "1.0.5" // 版本号
 )
 
@@ -27,14 +27,26 @@ func main() {
 	// 设置日志级别
 	setLogLevel(*logLevel)
 
-	// 打印版本信息
-	logrus.Infof("Telegram 转发到钉钉 v%s", version)
-	logrus.Infof("配置文件: %s", *configPath)
+	// 打印版本和配置信息
+	logrus.WithFields(logrus.Fields{
+		"version":     version,
+		"config_path": *configPath,
+		"log_level":   *logLevel,
+	}).Info("启动 Telegram 转发到钉钉服务")
 
 	// 加载配置
 	if err := config.LoadConfig(*configPath); err != nil {
 		logrus.Fatalf("加载配置失败: %v", err)
 	}
+	
+	// 打印关键配置信息
+	logrus.WithFields(logrus.Fields{
+		"telegram_chat_ids": config.AppConfig.Telegram.ChatIDs,
+		"queue_type":       config.AppConfig.Queue.Type,
+		"queue_path":       config.AppConfig.Queue.Path,
+		"retry_attempts":   config.AppConfig.Retry.MaxAttempts,
+		"retry_interval":   config.AppConfig.Retry.Interval,
+	}).Debug("已加载配置")
 
 	// 创建队列
 	messageQueue, err := createQueue()
@@ -52,18 +64,13 @@ func main() {
 
 	// 打印指标收集状态
 	if config.AppConfig.Metrics.Enabled {
-		logrus.Infof("指标收集已启用，间隔: %d秒，输出文件: %s",
-			config.AppConfig.Metrics.Interval,
-			config.AppConfig.Metrics.OutputFile)
-
-		// 打印 HTTP 服务状态
-		if config.AppConfig.Metrics.HTTP.Enabled {
-			logrus.Infof("指标 HTTP 服务已启用，端口: %d，路径: %s",
-				config.AppConfig.Metrics.HTTP.Port,
-				config.AppConfig.Metrics.HTTP.Path)
-		} else {
-			logrus.Info("指标 HTTP 服务已禁用")
-		}
+		logrus.WithFields(logrus.Fields{
+			"interval":     config.AppConfig.Metrics.Interval,
+			"output_file": config.AppConfig.Metrics.OutputFile,
+			"http_enabled": config.AppConfig.Metrics.HTTP.Enabled,
+			"http_port":    config.AppConfig.Metrics.HTTP.Port,
+			"http_path":    config.AppConfig.Metrics.HTTP.Path,
+		}).Info("指标收集已启用")
 	} else {
 		logrus.Info("指标收集已禁用")
 	}

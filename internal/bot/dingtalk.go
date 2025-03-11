@@ -46,35 +46,57 @@ func NewDingTalkClient() *DingTalkClient {
 
 // SendMessage 发送消息到钉钉
 func (c *DingTalkClient) SendMessage(msg *models.Message) error {
-	// 构建消息内容
-	content := fmt.Sprintf("[%s] %s: %s", msg.ChatTitle, msg.From, msg.Content)
+	logrus.WithFields(logrus.Fields{
+		"message_id": msg.ID,
+		"chat_id":   msg.ChatID,
+		"from":      msg.From,
+	}).Debug("准备发送消息到钉钉")
 
-	// 构建钉钉消息
-	dingMsg := DingTalkMessage{
-		MsgType: "text",
-		Text: struct {
-			Content string `json:"content"`
-		}{
-			Content: content,
+	// 构建消息内容
+	content := fmt.Sprintf("来自 %s (%s):\n%s", msg.ChatTitle, msg.From, msg.Content)
+	
+	// 构建请求体
+	reqBody := map[string]interface{}{
+		"msgtype": "text",
+		"text": map[string]string{
+			"content": content,
 		},
 	}
 
-	// 序列化消息
-	msgBytes, err := json.Marshal(dingMsg)
+	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("序列化钉钉消息失败: %w", err)
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error":     err,
+		}).Error("序列化消息失败")
+		return fmt.Errorf("序列化消息失败: %w", err)
 	}
 
-	// 构建请求 URL（添加签名）
-	reqURL, err := c.buildRequestURL()
-	if err != nil {
-		return fmt.Errorf("构建请求 URL 失败: %w", err)
-	}
+	// 获取当前时间戳
+	timestamp := time.Now().UnixMilli()
+	
+	// 计算签名
+	signStr := fmt.Sprintf("%d\n%s", timestamp, c.secret)
+	hmac256 := hmac.New(sha256.New, []byte(c.secret))
+	hmac256.Write([]byte(signStr))
+	signature := base64.StdEncoding.EncodeToString(hmac256.Sum(nil))
+
+	// 构建完整的 URL
+	url := fmt.Sprintf("%s&timestamp=%d&sign=%s", c.webhookURL, timestamp, url.QueryEscape(signature))
+
+	logrus.WithFields(logrus.Fields{
+		"message_id": msg.ID,
+		"url":       url,
+	}).Debug("发送 HTTP 请求到钉钉")
 
 	// 创建请求
-	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(msgBytes))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("创建 HTTP 请求失败: %w", err)
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error":     err,
+		}).Error("创建 HTTP 请求失败")
+		return fmt.Errorf("创建请求失败: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -82,22 +104,54 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 	// 发送请求
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("发送 HTTP 请求失败: %w", err)
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error":     err,
+		}).Error("发送 HTTP 请求失败")
+		return fmt.Errorf("发送请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error":     err,
+		}).Error("读取响应失败")
 		return fmt.Errorf("读取响应失败: %w", err)
 	}
 
-	// 检查响应状态码
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("钉钉 API 返回错误: %s", string(body))
+	// 解析响应
+	var result struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error":     err,
+			"response":  string(body),
+		}).Error("解析响应失败")
+		return fmt.Errorf("解析响应失败: %w", err)
 	}
 
-	logrus.Infof("成功发送消息到钉钉: %s", content)
+	// 检查响应状态
+	if result.ErrCode != 0 {
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"error_code": result.ErrCode,
+			"error_msg":  result.ErrMsg,
+		}).Error("钉钉返回错误")
+		return fmt.Errorf("钉钉返回错误: %s (错误码: %d)", result.ErrMsg, result.ErrCode)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"message_id": msg.ID,
+		"status":    resp.StatusCode,
+		"response":  string(body),
+	}).Debug("钉钉消息发送成功")
+
 	return nil
 }
 

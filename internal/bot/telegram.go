@@ -43,10 +43,33 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 	updates := c.bot.GetUpdatesChan(u)
 
 	logrus.Info("开始监听 Telegram 消息")
+	logrus.Infof("已配置的监听聊天 ID 列表: %v", c.chatIDs)
 
 	for update := range updates {
 		// 处理消息
 		if update.Message != nil {
+			// 打印详细的消息信息
+			logrus.WithFields(logrus.Fields{
+				"chat_id":      update.Message.Chat.ID,
+				"chat_type":    update.Message.Chat.Type,
+				"chat_title":   update.Message.Chat.Title,
+				"from_id":      update.Message.From.ID,
+				"from_name":    fmt.Sprintf("%s %s", update.Message.From.FirstName, update.Message.From.LastName),
+				"from_user":    update.Message.From.UserName,
+				"message_id":   update.Message.MessageID,
+				"message_text": update.Message.Text,
+			}).Info("收到新消息")
+
+			// 检查是否是监听的聊天 ID
+			if _, ok := c.chatIDs[update.Message.Chat.ID]; !ok {
+				logrus.WithFields(logrus.Fields{
+					"chat_id":    update.Message.Chat.ID,
+					"chat_title": update.Message.Chat.Title,
+					"chat_type":  update.Message.Chat.Type,
+				}).Warn("⚠️ 此消息来自未配置的聊天，将被忽略。如需转发此聊天的消息，请在配置文件中添加此 chat_id")
+				continue
+			}
+
 			c.handleMessage(update.Message, msgChan)
 		}
 	}
@@ -56,15 +79,14 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 
 // 处理消息
 func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<- *models.Message) {
-	// 检查消息是否来自配置的聊天
-	if !c.chatIDs[message.Chat.ID] {
-		return
+	// 获取发送者信息
+	from := message.From.UserName
+	if from == "" {
+		from = fmt.Sprintf("%s %s", message.From.FirstName, message.From.LastName)
 	}
 
 	// 获取消息内容
 	content := message.Text
-
-	// 如果消息为空，可能是媒体消息，尝试获取标题
 	if content == "" {
 		if message.Caption != "" {
 			content = message.Caption
@@ -97,37 +119,28 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		}
 	}
 
-	// 获取发送者信息
-	var from string
-	if message.From != nil {
-		from = message.From.FirstName
-		if message.From.LastName != "" {
-			from += " " + message.From.LastName
-		}
-		if message.From.UserName != "" {
-			from += " (@" + message.From.UserName + ")"
-		}
-	} else {
-		from = "未知用户"
-	}
+	// 创建消息对象
+	msg := models.NewMessage(
+		content,
+		from,
+		message.Chat.ID,
+		message.Chat.Title,
+	)
 
-	// 获取聊天标题
-	chatTitle := message.Chat.Title
-	if chatTitle == "" {
-		if message.Chat.Type == "private" {
-			chatTitle = "私聊"
-		} else {
-			chatTitle = "群聊"
-		}
-	}
-
-	// 创建消息模型
-	msg := models.NewMessage(content, from, message.Chat.ID, chatTitle)
+	logrus.WithFields(logrus.Fields{
+		"message_id": msg.ID,
+		"chat_id":   msg.ChatID,
+		"from":      msg.From,
+		"content":   msg.Content,
+	}).Info("✅ 消息已确认，准备转发")
 
 	// 发送到消息通道
-	msgChan <- msg
-
-	logrus.Infof("收到来自 %s 的消息: %s", from, truncateString(content, 50))
+	select {
+	case msgChan <- msg:
+		logrus.WithField("message_id", msg.ID).Debug("消息已加入处理队列")
+	default:
+		logrus.WithField("message_id", msg.ID).Warn("消息通道已满，消息可能丢失")
+	}
 }
 
 // 截断字符串
