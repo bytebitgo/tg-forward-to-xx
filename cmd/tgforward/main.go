@@ -15,6 +15,7 @@ import (
 	"github.com/user/tg-forward-to-xx/internal/handlers"
 	"github.com/user/tg-forward-to-xx/internal/queue"
 	"github.com/user/tg-forward-to-xx/internal/storage"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
 	showVersion  bool
 	httpPort     int
 	metricsPort  int
-	version      = "1.0.5" // 版本号
+	version      = "1.0.6" // 版本号
 )
 
 func init() {
@@ -167,42 +168,43 @@ func createQueue() (queue.Queue, error) {
 		// 检查目录是否存在
 		dirPath := filepath.Dir(queuePath)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			logrus.Warnf("队列目录不存在，将尝试创建: %s", dirPath)
+			logrus.Infof("队列目录不存在，正在创建: %s", dirPath)
+			if err := os.MkdirAll(dirPath, 0755); err != nil {
+				return nil, fmt.Errorf("创建队列目录失败: %v", err)
+			}
 		}
 		
 		// 检查目录权限
 		if info, err := os.Stat(dirPath); err == nil {
 			logrus.Infof("队列目录权限: %v", info.Mode())
+			// 检查目录是否可写
+			if err := unix.Access(dirPath, unix.W_OK); err != nil {
+				logrus.Warnf("队列目录不可写: %v", err)
+			}
 		}
 	}
 
-	// 初始化内存队列
+	// 初始化内存队列作为备用
 	memQueue, err := queue.NewMemoryQueue()
 	if err != nil {
 		return nil, fmt.Errorf("初始化内存队列失败: %v", err)
 	}
 	logrus.Debug("内存队列初始化成功")
 
-	// 初始化 LevelDB 队列
-	_, err = queue.NewLevelDBQueue()
-	if err != nil {
-		logrus.Errorf("初始化 LevelDB 队列失败: %v", err)
-		
-		// 如果配置的是 LevelDB 队列但初始化失败，自动切换到内存队列
-		if queueType == "leveldb" {
-			logrus.Warnf("自动切换到内存队列作为备用方案")
-			return memQueue, nil
-		}
-	} else {
-		logrus.Debug("LevelDB 队列初始化成功")
+	// 如果配置的是内存队列，直接返回
+	if queueType == "memory" {
+		logrus.Info("使用内存队列")
+		return memQueue, nil
 	}
 
-	// 创建指定类型的队列
-	q, err := queue.Create(queueType)
+	// 尝试创建 LevelDB 队列
+	leveldbQueue, err := queue.Create(queueType)
 	if err != nil {
-		return nil, fmt.Errorf("创建队列失败: %v", err)
+		logrus.Errorf("创建 LevelDB 队列失败: %v", err)
+		logrus.Warn("自动切换到内存队列作为备用方案")
+		return memQueue, nil
 	}
 
-	logrus.Infof("使用 %s 队列", queueType)
-	return q, nil
+	logrus.Info("成功创建 LevelDB 队列")
+	return leveldbQueue, nil
 }
