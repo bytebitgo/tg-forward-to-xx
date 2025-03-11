@@ -20,12 +20,12 @@ import (
 )
 
 var (
-	configPath   string
-	logLevel     string
-	showVersion  bool
-	httpPort     int
-	metricsPort  int
-	version      = "1.0.9" // 版本号
+	version     = "1.0.10"
+	configPath  string
+	showVersion bool
+	logLevel    string
+	metricsPort int
+	httpPort    int
 )
 
 func init() {
@@ -36,6 +36,29 @@ func init() {
 	flag.IntVar(&metricsPort, "metrics-port", 9090, "指标服务端口")
 }
 
+// fileHook 用于将日志同时写入文件
+type fileHook struct {
+	logger *logrus.Logger
+}
+
+// Fire 实现 logrus.Hook 接口
+func (h *fileHook) Fire(entry *logrus.Entry) error {
+	// 创建一个新的 Entry，复制原始 Entry 的字段
+	newEntry := logrus.NewEntry(h.logger)
+	newEntry.Data = entry.Data
+	newEntry.Time = entry.Time
+	newEntry.Level = entry.Level
+	newEntry.Message = entry.Message
+
+	// 写入日志文件
+	return newEntry.Log(entry.Level, entry.Message)
+}
+
+// Levels 实现 logrus.Hook 接口
+func (h *fileHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
 func main() {
 	flag.Parse()
 
@@ -43,6 +66,17 @@ func main() {
 	if err := config.LoadConfig(configPath); err != nil {
 		logrus.Fatalf("加载配置失败: %v", err)
 	}
+
+	// 设置日志格式
+	formatter := &logrus.TextFormatter{
+		FullTimestamp:          true,
+		TimestampFormat:       "2006-01-02 15:04:05",
+		DisableLevelTruncation: true,    // 显示完整的级别名称
+		PadLevelText:          true,     // 保持级别文本对齐
+		DisableColors:         false,    // 启用颜色
+		ForceColors:          true,     // 强制启用颜色，即使不是终端
+	}
+	logrus.SetFormatter(formatter)
 
 	// 设置日志级别
 	var level logrus.Level
@@ -70,16 +104,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 设置日志格式
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:          true,
-		TimestampFormat:       "2006-01-02 15:04:05",
-		DisableLevelTruncation: true,    // 显示完整的级别名称
-		PadLevelText:          true,     // 保持级别文本对齐
-		DisableColors:         false,    // 启用颜色
-		ForceColors:          true,     // 强制启用颜色，即使不是终端
-	})
-
 	// 如果配置了日志文件，设置日志输出
 	if config.AppConfig.Log.File != "" {
 		// 确保日志目录存在
@@ -95,8 +119,16 @@ func main() {
 		}
 		defer logFile.Close()
 
-		// 同时输出到文件和控制台
-		logrus.SetOutput(io.MultiWriter(os.Stdout, logFile))
+		// 为文件输出创建一个新的 logger
+		fileLogger := logrus.New()
+		fileLogger.SetFormatter(formatter)
+		fileLogger.SetLevel(level)
+		fileLogger.SetOutput(logFile)
+
+		// 创建一个 hook 来同时写入文件
+		logrus.AddHook(&fileHook{
+			logger: fileLogger,
+		})
 	}
 
 	// 打印启动信息

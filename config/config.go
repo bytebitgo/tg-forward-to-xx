@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -134,6 +135,26 @@ func validateConfig() error {
 
 	if AppConfig.DingTalk.WebhookURL == "" {
 		return fmt.Errorf("钉钉 Webhook URL 未配置")
+	}
+
+	// 验证日志配置
+	if AppConfig.Log.Level != "" {
+		if _, err := logrus.ParseLevel(AppConfig.Log.Level); err != nil {
+			return fmt.Errorf("无效的日志级别 %s: %v", AppConfig.Log.Level, err)
+		}
+	}
+
+	if AppConfig.Log.File != "" {
+		// 检查日志目录是否可写
+		logDir := filepath.Dir(AppConfig.Log.File)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			return fmt.Errorf("创建日志目录失败: %v", err)
+		}
+		if info, err := os.Stat(logDir); err != nil {
+			return fmt.Errorf("检查日志目录失败: %v", err)
+		} else if info.Mode().Perm()&0200 == 0 {
+			return fmt.Errorf("日志目录 %s 不可写", logDir)
+		}
 	}
 
 	if AppConfig.Queue.Type != "memory" && AppConfig.Queue.Type != "leveldb" {
