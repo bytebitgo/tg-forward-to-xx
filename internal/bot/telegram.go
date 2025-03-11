@@ -2,19 +2,22 @@ package bot
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
+	"github.com/user/tg-forward-to-xx/internal/storage"
 	"github.com/user/tg-forward-to-xx/internal/utils"
 )
 
 // TelegramClient Telegram 机器人客户端
 type TelegramClient struct {
-	bot     *tgbotapi.BotAPI
-	chatIDs map[int64]bool
+	bot      *tgbotapi.BotAPI
+	chatIDs  map[int64]bool
+	s3Client *storage.S3Client
 }
 
 // NewTelegramClient 创建一个新的 Telegram 机器人客户端
@@ -28,6 +31,12 @@ func NewTelegramClient() (*TelegramClient, error) {
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, fmt.Errorf("创建 Telegram 机器人失败: %w", err)
+	}
+
+	// 创建 S3 客户端
+	s3Client, err := storage.NewS3Client()
+	if err != nil {
+		return nil, fmt.Errorf("创建 S3 客户端失败: %w", err)
 	}
 
 	// 设置调试模式
@@ -53,8 +62,9 @@ func NewTelegramClient() (*TelegramClient, error) {
 	}
 
 	return &TelegramClient{
-		bot:     bot,
-		chatIDs: chatIDs,
+		bot:      bot,
+		chatIDs:  chatIDs,
+		s3Client: s3Client,
 	}, nil
 }
 
@@ -136,19 +146,51 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 
 	// 获取消息内容
 	content := message.Text
+	var fileURL string
+	var err error
+
 	if content == "" {
 		if message.Caption != "" {
 			content = message.Caption
+		}
+
+		// 处理文件、图片和视频
+		if message.Document != nil {
+			fileURL, err = c.handleFile(message.Document.FileID, "documents", message.Document.FileName, message.Document.MimeType)
+			if err != nil {
+				logrus.Errorf("处理文件失败: %v", err)
+				content = fmt.Sprintf("[文件: %s (处理失败)]", message.Document.FileName)
+			} else {
+				content = fmt.Sprintf("[文件: %s]\n%s", message.Document.FileName, fileURL)
+			}
+		} else if message.Photo != nil && len(message.Photo) > 0 {
+			// 获取最大尺寸的图片
+			photo := message.Photo[len(message.Photo)-1]
+			fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
+			if err != nil {
+				logrus.Errorf("处理图片失败: %v", err)
+				content = "[图片 (处理失败)]"
+			} else {
+				content = fmt.Sprintf("[图片]\n%s", fileURL)
+			}
+		} else if message.Video != nil {
+			fileURL, err = c.handleFile(message.Video.FileID, "videos", fmt.Sprintf("%d.mp4", message.MessageID), "video/mp4")
+			if err != nil {
+				logrus.Errorf("处理视频失败: %v", err)
+				content = "[视频 (处理失败)]"
+			} else {
+				content = fmt.Sprintf("[视频]\n%s", fileURL)
+			}
 		} else if message.Sticker != nil {
 			content = "[贴纸]"
-		} else if message.Photo != nil {
-			content = "[图片]"
-		} else if message.Document != nil {
-			content = fmt.Sprintf("[文件: %s]", message.Document.FileName)
 		} else if message.Audio != nil {
-			content = "[音频]"
-		} else if message.Video != nil {
-			content = "[视频]"
+			fileURL, err = c.handleFile(message.Audio.FileID, "audios", message.Audio.FileName, message.Audio.MimeType)
+			if err != nil {
+				logrus.Errorf("处理音频失败: %v", err)
+				content = "[音频 (处理失败)]"
+			} else {
+				content = fmt.Sprintf("[音频: %s]\n%s", message.Audio.FileName, fileURL)
+			}
 		} else if message.Voice != nil {
 			content = "[语音]"
 		} else if message.VideoNote != nil {
@@ -193,6 +235,29 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 	default:
 		logrus.WithField("message_id", msg.ID).Warn("消息通道已满，消息可能丢失")
 	}
+}
+
+// handleFile 处理文件上传
+func (c *TelegramClient) handleFile(fileID string, category string, filename string, contentType string) (string, error) {
+	// 获取文件信息
+	file, err := c.bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
+	if err != nil {
+		return "", fmt.Errorf("获取文件信息失败: %w", err)
+	}
+
+	// 下载文件
+	fileURL := file.Link(c.bot.Token)
+	resp, err := utils.HTTPClient.Get(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("下载文件失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 生成 S3 对象名称
+	objectName := filepath.Join(category, filename)
+
+	// 上传到 S3
+	return c.s3Client.UploadFile(resp.Body, objectName, contentType)
 }
 
 // 截断字符串

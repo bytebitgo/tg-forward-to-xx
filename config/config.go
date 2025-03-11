@@ -65,6 +65,16 @@ type Config struct {
 			} `mapstructure:"tls"`
 		} `mapstructure:"http"`
 	} `mapstructure:"metrics"`
+
+	S3 struct {
+		Endpoint        string `mapstructure:"endpoint"`
+		Region          string `mapstructure:"region"`
+		Bucket          string `mapstructure:"bucket"`
+		AccessKeyID     string `mapstructure:"access_key_id"`
+		SecretAccessKey string `mapstructure:"secret_access_key"`
+		UseSSL         bool   `mapstructure:"use_ssl"`
+		PublicBaseURL  string `mapstructure:"public_base_url"`
+	} `mapstructure:"s3"`
 }
 
 var (

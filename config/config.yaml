@@ -1,39 +1,35 @@
 telegram:
-  token: "YOUR_TELEGRAM_BOT_TOKEN"
-  chat_ids: [123456789, -987654321]  # 要监听的聊天ID列表
+  token: "YOUR_BOT_TOKEN"
+  chat_ids: [123456789, -987654321]
 
 dingtalk:
-  webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_ACCESS_TOKEN"
-  secret: "YOUR_SECRET"  # 钉钉机器人安全设置中的签名密钥
+  webhook_url: "YOUR_WEBHOOK_URL"
+  secret: "YOUR_SECRET"
 
 log:
   level: "info"  # 日志级别：debug, info, warn, error
-  file: "/var/log/tg-forward/main.log"  # 日志文件路径
+  file_path: "/var/log/tg-forward/main.log"  # 日志文件路径
   max_size: 100  # 单个日志文件最大大小（MB）
-  max_files: 10  # 最大保留文件数
+  max_files: 7  # 最大保留文件数
 
 queue:
   type: "leveldb"  # 可选: "memory" 或 "leveldb"
-  path: "./data/queue"  # LevelDB 存储路径
+  path: "/var/lib/tg-forward"  # LevelDB 存储路径
 
 retry:
-  max_attempts: 5  # 最大重试次数
+  max_attempts: 3  # 最大重试次数
   interval: 60  # 重试间隔（秒）
 
 metrics:
   enabled: true  # 是否启用指标收集
-  interval: 60   # 收集间隔（秒）
-  output_file: "./data/metrics/queue_metrics.json"  # 指标输出文件路径
-  http:
-    enabled: true   # 是否启用 HTTP 服务
-    port: 9090      # HTTP 服务端口
-    path: "/metrics"  # 指标 API 路径
-    auth: true      # 是否启用认证
-    api_key: "your-secret-api-key"  # API Key
-    header_name: "X-API-Key"  # API Key 请求头名称
-    tls:
-      enabled: true                    # 是否启用 HTTPS
-      cert_file: "./certs/server.crt"  # 证书文件路径
-      key_file: "./certs/server.key"   # 私钥文件路径
-      port: 9443                       # HTTPS 端口（可选，默认与 HTTP 端口相同）
-      force_https: true                # 是否强制使用 HTTPS 
+  port: 9090  # 收集间隔（秒）
+  output_file: "/var/log/tg-forward/metrics.json"  # 指标输出文件路径
+
+s3:
+  endpoint: "YOUR_S3_ENDPOINT"  # 例如：s3.amazonaws.com 或 play.min.io
+  region: "YOUR_REGION"  # 例如：us-east-1
+  bucket: "YOUR_BUCKET_NAME"
+  access_key_id: "YOUR_ACCESS_KEY"
+  secret_access_key: "YOUR_SECRET_KEY"
+  use_ssl: true
+  public_base_url: "YOUR_PUBLIC_URL"  # 例如：https://cdn.example.com 
