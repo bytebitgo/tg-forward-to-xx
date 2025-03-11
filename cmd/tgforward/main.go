@@ -115,48 +115,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 如果配置了日志文件，设置日志输出
-	if config.AppConfig.Log.File != "" {
-		// 确保日志目录存在
-		logDir := filepath.Dir(config.AppConfig.Log.File)
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			logrus.Fatalf("创建日志目录失败: %v", err)
-		}
-
-		// 打开日志文件
-		logFile, err := os.OpenFile(config.AppConfig.Log.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			logrus.Fatalf("打开日志文件失败: %v", err)
-		}
-		defer logFile.Close()
-
-		// 为文件输出创建一个新的 logger
-		fileLogger := logrus.New()
-		// 为文件设置无颜色的格式器
-		fileFormatter := &logrus.TextFormatter{
-			FullTimestamp:          true,
-			TimestampFormat:       "2006-01-02 15:04:05",
-			DisableLevelTruncation: true,    // 显示完整的级别名称
-			PadLevelText:          true,     // 保持级别文本对齐
-			DisableColors:         true,     // 禁用颜色
-			ForceQuote:           true,     // 强制引用字段值
-		}
-		fileLogger.SetFormatter(fileFormatter)
-		fileLogger.SetLevel(level)
-		fileLogger.SetOutput(logFile)
-
-		// 创建一个 hook 来同时写入文件
-		logrus.AddHook(&fileHook{
-			logger: fileLogger,
-		})
-	}
-
 	// 打印启动信息
 	logrus.WithFields(logrus.Fields{
 		"version":     version,
 		"config_path": configPath,
 		"log_level":   level.String(),
-		"log_file":    config.AppConfig.Log.File,
+		"log_file":    config.AppConfig.Log.FilePath,
 		"pid":        os.Getpid(),
 	}).Info("🚀 启动 Telegram 转发服务")
 

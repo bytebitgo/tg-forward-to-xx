@@ -30,7 +30,7 @@ type Config struct {
 
 	Log struct {
 		Level    string `mapstructure:"level"`     // 日志级别
-		File     string `mapstructure:"file"`      // 日志文件路径
+		FilePath string `mapstructure:"file_path"` // 日志文件路径
 		MaxSize  int    `mapstructure:"max_size"`  // 单个日志文件最大大小（MB）
 		MaxFiles int    `mapstructure:"max_files"` // 最大保留文件数
 	} `mapstructure:"log"`
@@ -154,9 +154,9 @@ func validateConfig() error {
 		}
 	}
 
-	if AppConfig.Log.File != "" {
+	if AppConfig.Log.FilePath != "" {
 		// 检查日志目录是否可写
-		logDir := filepath.Dir(AppConfig.Log.File)
+		logDir := filepath.Dir(AppConfig.Log.FilePath)
 		if err := os.MkdirAll(logDir, 0755); err != nil {
 			return fmt.Errorf("创建日志目录失败: %v", err)
 		}

@@ -2,7 +2,6 @@ package bot
 
 import (
 	"fmt"
-	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -140,6 +139,8 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 
 // 处理消息
 func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<- *models.Message) {
+	logrus.Debug("开始处理新消息...")
+
 	// 获取发送者信息
 	from := message.From.UserName
 	if from == "" {
@@ -150,28 +151,41 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 	content := message.Text
 	var fileURL string
 
+	// 详细记录消息类型和内容
 	logrus.WithFields(logrus.Fields{
-		"message_type": getMessageType(message),
-		"from":        from,
-		"chat_id":     message.Chat.ID,
-	}).Debug("开始处理消息")
+		"message_id":    message.MessageID,
+		"message_type":  getMessageType(message),
+		"from":         from,
+		"chat_id":      message.Chat.ID,
+		"has_text":     message.Text != "",
+		"has_caption":  message.Caption != "",
+		"has_document": message.Document != nil,
+		"has_photo":    message.Photo != nil,
+		"has_video":    message.Video != nil,
+		"has_audio":    message.Audio != nil,
+	}).Debug("消息详情")
 
 	// 处理文件类型的消息
 	if message.Document != nil || message.Photo != nil || message.Video != nil || message.Audio != nil {
+		logrus.Debug("检测到媒体文件，开始处理...")
 		content, fileURL = c.processMediaMessage(message)
 		if fileURL != "" {
 			logrus.WithFields(logrus.Fields{
 				"file_url": fileURL,
 				"content":  content,
 			}).Info("媒体文件处理完成")
+		} else {
+			logrus.Warn("媒体文件处理完成，但未获得文件URL")
 		}
 	} else {
 		// 处理文本消息
 		if content == "" {
 			if message.Caption != "" {
 				content = message.Caption
+				logrus.WithField("caption", content).Debug("使用消息说明作为内容")
 			} else {
 				content = getDefaultContent(message)
+				logrus.WithField("default_content", content).Debug("使用默认内容")
 			}
 		}
 	}
@@ -198,21 +212,29 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 	// 发送到消息通道
 	select {
 	case msgChan <- msg:
-		logrus.WithField("message_id", msg.ID).Debug("消息已加入处理队列")
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"chat_id":   msg.ChatID,
+		}).Debug("消息已加入处理队列")
 	default:
-		logrus.WithField("message_id", msg.ID).Warn("消息通道已满，消息可能丢失")
+		logrus.WithFields(logrus.Fields{
+			"message_id": msg.ID,
+			"chat_id":   msg.ChatID,
+		}).Warn("消息通道已满，消息可能丢失")
 	}
 }
 
 // processMediaMessage 处理媒体消息
 func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content, fileURL string) {
+	logrus.Debug("进入媒体消息处理函数")
+
 	if message.Document != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id":   message.Document.FileID,
 			"file_name": message.Document.FileName,
 			"mime_type": message.Document.MimeType,
 			"file_size": message.Document.FileSize,
-		}).Info("📄 收到文件消息")
+		}).Debug("开始处理文档文件")
 		
 		var err error
 		fileURL, err = c.handleFile(message.Document.FileID, "documents", message.Document.FileName, message.Document.MimeType)
@@ -221,6 +243,7 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 			content = fmt.Sprintf("[文件: %s (处理失败)]", message.Document.FileName)
 		} else {
 			content = fmt.Sprintf("[文件: %s]\n%s", message.Document.FileName, fileURL)
+			logrus.WithField("file_url", fileURL).Info("文档处理成功")
 		}
 		return
 	}
@@ -228,11 +251,12 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 	if message.Photo != nil && len(message.Photo) > 0 {
 		photo := message.Photo[len(message.Photo)-1]
 		logrus.WithFields(logrus.Fields{
-			"file_id":   photo.FileID,
-			"width":     photo.Width,
-			"height":    photo.Height,
-			"file_size": photo.FileSize,
-		}).Info("🖼️ 收到图片消息")
+			"file_id":     photo.FileID,
+			"width":       photo.Width,
+			"height":      photo.Height,
+			"file_size":   photo.FileSize,
+			"photo_count": len(message.Photo),
+		}).Debug("开始处理图片文件")
 		
 		var err error
 		fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
@@ -241,6 +265,7 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 			content = "[图片 (处理失败)]"
 		} else {
 			content = fmt.Sprintf("[图片]\n%s", fileURL)
+			logrus.WithField("file_url", fileURL).Info("图片处理成功")
 		}
 		return
 	}
@@ -343,9 +368,10 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 		"category":     category,
 		"filename":     filename,
 		"content_type": contentType,
-	}).Info("开始处理文件")
+	}).Debug("开始文件处理流程")
 
 	// 1. 获取文件信息
+	logrus.Debug("正在获取文件信息...")
 	fileConfig := tgbotapi.FileConfig{FileID: fileID}
 	file, err := c.bot.GetFile(fileConfig)
 	if err != nil {
@@ -364,11 +390,11 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 		"file_id":   fileID,
 		"file_path": file.FilePath,
 		"file_size": file.FileSize,
-	}).Info("成功获取文件信息")
+	}).Debug("成功获取文件信息")
 
 	// 2. 获取下载链接并下载
 	fileURL := file.Link(c.bot.Token)
-	logrus.WithField("download_url", strings.Replace(fileURL, c.bot.Token, "***", -1)).Debug("准备下载文件")
+	logrus.Debug("开始下载文件...")
 	
 	resp, err := utils.HTTPClient.Get(fileURL)
 	if err != nil {
@@ -380,34 +406,20 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		logrus.WithFields(logrus.Fields{
-			"status_code": resp.StatusCode,
-			"status":      resp.Status,
-			"file_id":     fileID,
-		}).Error("下载文件失败")
-		return "", fmt.Errorf("下载文件失败，状态码: %d", resp.StatusCode)
-	}
-
-	contentLength := resp.ContentLength
-	actualContentType := resp.Header.Get("Content-Type")
-	
 	logrus.WithFields(logrus.Fields{
-		"content_length":      contentLength,
-		"content_type":        actualContentType,
-		"expected_type":       contentType,
-		"content_disposition": resp.Header.Get("Content-Disposition"),
-	}).Info("文件下载成功")
+		"status_code":    resp.StatusCode,
+		"content_length": resp.ContentLength,
+		"content_type":   resp.Header.Get("Content-Type"),
+	}).Debug("文件下载状态")
 
 	// 3. 生成 S3 对象名称
 	timestamp := time.Now().Format("20060102150405")
 	objectName := filepath.Join(category, fmt.Sprintf("%s_%s", timestamp, filename))
-	logrus.WithFields(logrus.Fields{
-		"object_name": objectName,
-		"category":    category,
-	}).Info("准备上传到 S3")
+	
+	logrus.WithField("object_name", objectName).Debug("准备上传到 S3")
 
 	// 4. 上传到 S3
+	logrus.Debug("开始上传到 S3...")
 	s3URL, err := c.s3Client.UploadFile(resp.Body, objectName, contentType)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -421,8 +433,7 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 	logrus.WithFields(logrus.Fields{
 		"object_name": objectName,
 		"s3_url":     s3URL,
-		"file_size":  contentLength,
-	}).Info("文件成功上传到 S3")
+	}).Debug("文件处理完成")
 
 	return s3URL, nil
 }
