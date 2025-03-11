@@ -78,7 +78,7 @@ func createLevelDBQueue() (Queue, error) {
 	db, err := leveldb.OpenFile(queuePath, options)
 	if err != nil {
 		// 如果打开失败，尝试清理可能的损坏文件
-		if err == errors.ErrCorrupted {
+		if errors.IsCorrupted(err) {
 			db, err = leveldb.RecoverFile(queuePath, nil)
 			if err != nil {
 				return nil, fmt.Errorf("恢复损坏的 LevelDB 失败: %w", err)
