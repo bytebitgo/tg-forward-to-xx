@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -21,6 +22,14 @@ func init() {
 	flag.StringVar(&configFile, "config", "/etc/tg-forward/config.yaml", "配置文件路径")
 	flag.BoolVar(&dryRun, "dry-run", false, "是否只预览变更而不实际执行")
 	flag.Parse()
+}
+
+func sanitizeMessage(content string) string {
+	// 检查是否包含无法解析的字符
+	if strings.ContainsRune(content, '\uFFFD') {
+		return "Emoji 解析失败"
+	}
+	return content
 }
 
 func main() {
@@ -69,12 +78,23 @@ func main() {
 			continue
 		}
 
-		// 检查是否需要更新
-		if message.GroupName == "" {
-			updated++
-			// 设置群组名称
-			message.GroupName = groupNames[message.ChatID]
+		needsUpdate := false
 
+		// 检查是否需要更新群组名称
+		if message.GroupName == "" {
+			message.GroupName = groupNames[message.ChatID]
+			needsUpdate = true
+		}
+
+		// 检查消息内容是否需要处理
+		sanitizedContent := sanitizeMessage(message.Content)
+		if sanitizedContent != message.Content {
+			message.Content = sanitizedContent
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			updated++
 			// 序列化消息
 			newValue, err := message.ToJSON()
 			if err != nil {

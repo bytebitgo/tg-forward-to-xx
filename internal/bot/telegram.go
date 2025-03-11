@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
+	"github.com/user/tg-forward-to-xx/internal/utils"
 )
 
 // TelegramClient Telegram 机器人客户端
@@ -166,6 +167,9 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 			content = "[未知消息类型]"
 		}
 	}
+
+	// 处理表情符号
+	content = utils.SanitizeMessage(content)
 
 	// 创建消息对象
 	msg := models.NewMessage(

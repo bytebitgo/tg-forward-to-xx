@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
+	"github.com/user/tg-forward-to-xx/internal/utils"
 )
 
 // DingTalkClient 钉钉机器人客户端
@@ -52,8 +53,11 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 		"from":      msg.From,
 	}).Debug("准备发送消息到钉钉")
 
+	// 处理消息内容中的表情
+	sanitizedContent := utils.SanitizeMessage(msg.Content)
+
 	// 构建消息内容
-	content := fmt.Sprintf("来自 %s (%s):\n%s", msg.ChatTitle, msg.From, msg.Content)
+	content := fmt.Sprintf("来自 %s (%s):\n%s", msg.ChatTitle, msg.From, sanitizedContent)
 	
 	// 构建请求体
 	reqBody := map[string]interface{}{

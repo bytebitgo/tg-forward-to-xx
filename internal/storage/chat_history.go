@@ -13,6 +13,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/user/tg-forward-to-xx/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
+	"github.com/user/tg-forward-to-xx/internal/utils"
 )
 
 // ChatHistoryStorage 聊天记录存储服务
@@ -38,6 +39,9 @@ func NewChatHistoryStorage() (*ChatHistoryStorage, error) {
 
 // SaveMessage 保存聊天记录
 func (s *ChatHistoryStorage) SaveMessage(history *models.ChatHistory) error {
+	// 处理消息内容中的表情
+	history.Text = utils.SanitizeMessage(history.Text)
+
 	// 使用时间戳作为键的一部分
 	key := makeKey(history.ChatID, history.Timestamp.UnixNano())
 	
