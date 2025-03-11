@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -56,15 +57,24 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 		"from":      msg.From,
 	}).Debug("准备发送消息到钉钉")
 
+	// 构造发送者信息
+	senderInfo := fmt.Sprintf("来自 %s 的", msg.From)
+	if msg.ChatTitle != "" {
+		senderInfo = fmt.Sprintf("来自 %s(%s) 的", msg.From, msg.ChatTitle)
+	}
+
 	// 构造消息体
 	var data map[string]interface{}
 	if msg.IsMarkdown {
 		// Markdown 格式消息
+		messageTitle := fmt.Sprintf("%s图片消息", senderInfo)
+		messageContent := fmt.Sprintf("### %s\n%s", messageTitle, msg.Content)
+
 		data = map[string]interface{}{
 			"msgtype": "markdown",
 			"markdown": map[string]string{
-				"title": fmt.Sprintf("来自 %s 的消息", msg.ChatTitle),
-				"text":  msg.Content,
+				"title": messageTitle,
+				"text":  messageContent,
 			},
 		}
 		// 只有在启用 @ 功能时才添加 at 字段
@@ -76,7 +86,21 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 		}
 	} else {
 		// 普通文本消息
-		content := msg.Content
+		messageType := "文字消息"
+		if strings.Contains(msg.Content, "[图片]") {
+			messageType = "图片消息"
+		} else if strings.Contains(msg.Content, "[视频]") {
+			messageType = "视频消息"
+		} else if strings.Contains(msg.Content, "[音频]") {
+			messageType = "音频消息"
+		} else if strings.Contains(msg.Content, "[文档]") {
+			messageType = "文档消息"
+		} else if strings.Contains(msg.Content, "[贴纸]") {
+			messageType = "贴纸消息"
+		}
+
+		content := fmt.Sprintf("%s%s：\n%s", senderInfo, messageType, msg.Content)
+
 		// 只有在启用 @ 功能时才添加 @ 信息
 		if config.AppConfig.DingTalk.EnableAt && len(c.atMobiles) > 0 {
 			content += "\n"
