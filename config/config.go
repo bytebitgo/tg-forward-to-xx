@@ -89,18 +89,37 @@ func GetConfigPath() string {
 		return envPath
 	}
 
-	// 2. 检查当前目录
+	// 2. 检查当前目录的 env.yaml
+	if _, err := os.Stat("env.yaml"); err == nil {
+		return "env.yaml"
+	}
+
+	// 3. 检查 /etc/tg-forward/env.yaml
+	if _, err := os.Stat("/etc/tg-forward/env.yaml"); err == nil {
+		return "/etc/tg-forward/env.yaml"
+	}
+
+	// 4. 检查用户主目录的 env.yaml
+	home, err := os.UserHomeDir()
+	if err == nil {
+		configPath := filepath.Join(home, ".tg-forward", "env.yaml")
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath
+		}
+	}
+
+	// 5. 如果找不到 env.yaml，则检查 config.yaml
 	if _, err := os.Stat("config.yaml"); err == nil {
 		return "config.yaml"
 	}
 
-	// 3. 检查默认路径
+	// 6. 检查默认路径的 config.yaml
 	if _, err := os.Stat(DefaultConfigPath); err == nil {
 		return DefaultConfigPath
 	}
 
-	// 4. 返回默认路径（即使不存在）
-	return DefaultConfigPath
+	// 7. 如果都找不到，返回默认的 env.yaml 路径
+	return "env.yaml"
 }
 
 // LoadConfig 加载配置文件

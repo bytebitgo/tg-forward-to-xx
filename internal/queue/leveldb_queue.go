@@ -11,8 +11,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/user/tg-forward-to-xx/config"
+	"github.com/user/tg-forward-to-xx/internal/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
+	"github.com/sirupsen/logrus"
 )
 
 // LevelDBQueue 基于 LevelDB 的持久化队列实现
@@ -27,35 +28,55 @@ type LevelDBQueue struct {
 // 队列索引键
 const indexKey = "queue:index"
 
-// NewLevelDBQueue 创建一个新的 LevelDB 队列
+var (
+	// 确保只初始化一次
+	initOnce sync.Once
+)
+
+// 初始化并注册 LevelDB 队列
 func init() {
-	// 注册 LevelDB 队列工厂
-	Register("leveldb", func() (Queue, error) {
-		return createLevelDBQueue()
+	initOnce.Do(func() {
+		// 注册 LevelDB 队列工厂
+		Register("leveldb", func() (Queue, error) {
+			logrus.Debug("创建新的 LevelDB 队列实例")
+			return createLevelDBQueue()
+		})
 	})
 }
 
+// NewLevelDBQueue 创建一个新的 LevelDB 队列
 func NewLevelDBQueue() (Queue, error) {
-	return createLevelDBQueue()
+	logrus.Debug("通过 NewLevelDBQueue 创建队列")
+	return Create("leveldb")
 }
 
 // 创建 LevelDB 队列
 func createLevelDBQueue() (Queue, error) {
 	queuePath := config.AppConfig.Queue.Path
+	logrus.Debugf("开始创建 LevelDB 队列，路径: %s", queuePath)
 
-	// 确保目录存在
-	if err := os.MkdirAll(filepath.Dir(queuePath), 0755); err != nil {
-		return nil, fmt.Errorf("创建队列目录失败: %w", err)
-	}
-
-	// 检查目录权限
-	dirInfo, err := os.Stat(filepath.Dir(queuePath))
+	// 检查目录是否存在
+	dirInfo, err := os.Stat(queuePath)
 	if err != nil {
-		return nil, fmt.Errorf("检查队列目录状态失败: %w", err)
+		if os.IsNotExist(err) {
+			// 目录不存在，创建它
+			logrus.Debugf("队列目录不存在，创建目录: %s", queuePath)
+			if err := os.MkdirAll(queuePath, 0755); err != nil {
+				return nil, fmt.Errorf("创建队列目录失败: %w", err)
+			}
+			// 重新获取目录信息
+			dirInfo, err = os.Stat(queuePath)
+			if err != nil {
+				return nil, fmt.Errorf("检查新创建的队列目录状态失败: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("检查队列目录状态失败: %w", err)
+		}
 	}
 	
 	// 检查目录权限模式
 	dirMode := dirInfo.Mode()
+	logrus.Debugf("队列目录权限: %v", dirMode)
 	if dirMode.Perm()&0700 != 0700 {
 		return nil, fmt.Errorf("队列目录权限不足: %v", dirMode)
 	}
@@ -68,6 +89,10 @@ func createLevelDBQueue() (Queue, error) {
 			return nil, fmt.Errorf("数据库可能被其他进程锁定: %w", err)
 		} else {
 			file.Close()
+			// 删除旧的锁文件
+			if err := os.Remove(lockFile); err != nil {
+				return nil, fmt.Errorf("删除旧的锁文件失败: %w", err)
+			}
 		}
 	}
 
@@ -75,16 +100,23 @@ func createLevelDBQueue() (Queue, error) {
 	options := &opt.Options{
 		ErrorIfExist:   false,
 		ErrorIfMissing: false,
+		NoSync:         false,  // 启用同步写入
+		NoWriteMerge:   false,  // 启用写入合并
+		WriteBuffer:    64 * 1024 * 1024, // 64MB 写缓冲
+		BlockCacheCapacity: 32 * 1024 * 1024, // 32MB 块缓存
 	}
 	
+	logrus.Debug("尝试打开 LevelDB 数据库")
 	db, err := leveldb.OpenFile(queuePath, options)
 	if err != nil {
 		// 如果打开失败，尝试清理可能的损坏文件
 		if errors.IsCorrupted(err) {
+			logrus.Warn("检测到数据库文件可能损坏，尝试恢复...")
 			db, err = leveldb.RecoverFile(queuePath, nil)
 			if err != nil {
 				return nil, fmt.Errorf("恢复损坏的 LevelDB 失败: %w", err)
 			}
+			logrus.Info("数据库恢复成功")
 		} else {
 			return nil, fmt.Errorf("打开 LevelDB 失败: %w", err)
 		}
@@ -100,10 +132,12 @@ func createLevelDBQueue() (Queue, error) {
 	// 初始化索引
 	if _, err := db.Get(queue.indexKey, nil); err == leveldb.ErrNotFound {
 		if err := db.Put(queue.indexKey, []byte("0"), nil); err != nil {
+			db.Close()
 			return nil, fmt.Errorf("初始化队列索引失败: %w", err)
 		}
 	}
 
+	logrus.Info("LevelDB 队列创建成功")
 	return queue, nil
 }
 

@@ -18,7 +18,7 @@ log:
 
 queue:
   type: "leveldb"  # 可选: "memory" 或 "leveldb"
-  path: "/var/lib/tg-forward"  # LevelDB 存储路径
+  path: "./data/queue"  # LevelDB 存储路径
 
 retry:
   max_attempts: 3  # 最大重试次数

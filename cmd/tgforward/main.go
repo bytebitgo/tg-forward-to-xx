@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	version     = "1.0.11"
+	// Version 程序版本号
+	Version = "1.0.19"
 	configPath  string
 	showVersion bool
 	logLevel    string
@@ -148,13 +149,13 @@ func main() {
 
 	// 显示版本信息
 	if showVersion {
-		fmt.Printf("tg-forward 版本 %s\n", version)
+		fmt.Printf("tg-forward 版本 %s\n", Version)
 		os.Exit(0)
 	}
 
 	// 打印启动信息
 	logrus.WithFields(logrus.Fields{
-		"version":     version,
+		"version":     Version,
 		"config_path": configPath,
 		"log_level":   level.String(),
 		"log_file":    config.AppConfig.Log.FilePath,
@@ -252,42 +253,47 @@ func createQueue() (queue.Queue, error) {
 		queuePath := config.AppConfig.Queue.Path
 		logrus.Infof("LevelDB 队列路径: %s", queuePath)
 		
-		// 检查目录是否存在
-		dirPath := filepath.Dir(queuePath)
-		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			logrus.Infof("队列目录不存在，正在创建: %s", dirPath)
-			if err := os.MkdirAll(dirPath, 0755); err != nil {
+		// 检查并创建完整的队列目录
+		if _, err := os.Stat(queuePath); os.IsNotExist(err) {
+			logrus.Infof("队列目录不存在，正在创建: %s", queuePath)
+			if err := os.MkdirAll(queuePath, 0755); err != nil {
+				logrus.Errorf("创建队列目录失败: %v", err)
 				return nil, fmt.Errorf("创建队列目录失败: %v", err)
 			}
+			logrus.Info("队列目录创建成功")
 		}
 		
 		// 检查目录权限
-		if info, err := os.Stat(dirPath); err == nil {
-			logrus.Infof("队列目录权限: %v", info.Mode())
+		if info, err := os.Stat(queuePath); err == nil {
+			mode := info.Mode()
+			logrus.Infof("队列目录权限: %v", mode)
+			
 			// 检查目录是否可写
-			if err := unix.Access(dirPath, unix.W_OK); err != nil {
-				logrus.Warnf("队列目录不可写: %v", err)
+			if err := unix.Access(queuePath, unix.W_OK); err != nil {
+				logrus.Errorf("队列目录不可写: %v", err)
+				return nil, fmt.Errorf("队列目录不可写: %v", err)
 			}
+			logrus.Info("队列目录权限检查通过")
+		} else {
+			logrus.Errorf("检查队列目录状态失败: %v", err)
+			return nil, fmt.Errorf("检查队列目录状态失败: %v", err)
 		}
 	}
 
-	// 初始化内存队列作为备用
-	memQueue, err := queue.NewMemoryQueue()
-	if err != nil {
-		return nil, fmt.Errorf("初始化内存队列失败: %v", err)
-	}
-	logrus.Debug("内存队列初始化成功")
-
-	// 如果配置的是内存队列，直接返回
-	if queueType == "memory" {
-		logrus.Info("使用内存队列")
-		return memQueue, nil
-	}
-
 	// 尝试创建 LevelDB 队列
+	logrus.Debug("开始创建队列")
 	leveldbQueue, err := queue.Create(queueType)
 	if err != nil {
 		logrus.Errorf("创建 LevelDB 队列失败: %v", err)
+		
+		// 初始化内存队列作为备用
+		logrus.Info("尝试初始化内存队列作为备用")
+		memQueue, memErr := queue.NewMemoryQueue()
+		if memErr != nil {
+			logrus.Errorf("初始化内存队列失败: %v", memErr)
+			return nil, fmt.Errorf("初始化内存队列失败: %v", memErr)
+		}
+		
 		logrus.Warn("自动切换到内存队列作为备用方案")
 		return memQueue, nil
 	}
