@@ -147,10 +147,6 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		from = fmt.Sprintf("%s %s", message.From.FirstName, message.From.LastName)
 	}
 
-	// 获取消息内容
-	content := message.Text
-	var fileURL string
-
 	// 详细记录消息类型和内容
 	logrus.WithFields(logrus.Fields{
 		"message_id":    message.MessageID,
@@ -165,8 +161,14 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		"has_audio":    message.Audio != nil,
 	}).Debug("消息详情")
 
-	// 处理文件类型的消息
-	if message.Document != nil || message.Photo != nil || message.Video != nil || message.Audio != nil {
+	var content string
+	var fileURL string
+
+	// 首先检查是否是媒体文件
+	if message.Document != nil || 
+	   (message.Photo != nil && len(message.Photo) > 0) || 
+	   message.Video != nil || 
+	   message.Audio != nil {
 		logrus.Debug("检测到媒体文件，开始处理...")
 		content, fileURL = c.processMediaMessage(message)
 		if fileURL != "" {
@@ -177,17 +179,18 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		} else {
 			logrus.Warn("媒体文件处理完成，但未获得文件URL")
 		}
+	} else if message.Text != "" {
+		// 处理纯文本消息
+		content = message.Text
+		logrus.WithField("text", content).Debug("处理文本消息")
+	} else if message.Caption != "" {
+		// 如果有说明文字，使用说明文字
+		content = message.Caption
+		logrus.WithField("caption", content).Debug("使用消息说明作为内容")
 	} else {
-		// 处理文本消息
-		if content == "" {
-			if message.Caption != "" {
-				content = message.Caption
-				logrus.WithField("caption", content).Debug("使用消息说明作为内容")
-			} else {
-				content = getDefaultContent(message)
-				logrus.WithField("default_content", content).Debug("使用默认内容")
-			}
-		}
+		// 处理其他类型的消息
+		content = getDefaultContent(message)
+		logrus.WithField("default_content", content).Debug("使用默认内容")
 	}
 
 	// 处理表情符号
