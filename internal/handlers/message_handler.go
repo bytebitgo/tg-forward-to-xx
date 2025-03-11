@@ -11,6 +11,8 @@ import (
 	"github.com/user/tg-forward-to-xx/internal/metrics"
 	"github.com/user/tg-forward-to-xx/internal/models"
 	"github.com/user/tg-forward-to-xx/internal/queue"
+	"github.com/user/tg-forward-to-xx/internal/storage"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // MessageHandler 消息处理器
@@ -22,10 +24,13 @@ type MessageHandler struct {
 	stopChan        chan struct{}
 	msgChan         chan *models.Message
 	metricsReporter *metrics.Reporter
+	bot             *tgbotapi.BotAPI
+	storage         *storage.ChatHistoryStorage
+	stopped         bool
 }
 
 // NewMessageHandler 创建一个新的消息处理器
-func NewMessageHandler(q queue.Queue) *MessageHandler {
+func NewMessageHandler(q queue.Queue, storage *storage.ChatHistoryStorage) (*MessageHandler, error) {
 	handler := &MessageHandler{
 		dingTalk:      bot.NewDingTalkClient(),
 		messageQueue:  q,
@@ -33,6 +38,8 @@ func NewMessageHandler(q queue.Queue) *MessageHandler {
 		retryInterval: time.Duration(config.AppConfig.Retry.Interval) * time.Second,
 		stopChan:      make(chan struct{}),
 		msgChan:       make(chan *models.Message, 100),
+		storage:       storage,
+		stopped:       false,
 	}
 
 	// 如果启用了指标收集，创建指标报告器
@@ -41,19 +48,18 @@ func NewMessageHandler(q queue.Queue) *MessageHandler {
 		handler.metricsReporter = metrics.NewReporter(q, interval, config.AppConfig.Metrics.OutputFile)
 	}
 
-	return handler
+	bot, err := tgbotapi.NewBotAPI(config.AppConfig.Telegram.Token)
+	if err != nil {
+		return nil, fmt.Errorf("创建 Telegram 客户端失败: %w", err)
+	}
+	handler.bot = bot
+
+	return handler, nil
 }
 
 // Start 启动消息处理器
 func (h *MessageHandler) Start() error {
 	logrus.Info("🔄 正在启动消息处理器...")
-
-	// 启动 Telegram 客户端
-	tgClient, err := bot.NewTelegramClient()
-	if err != nil {
-		return fmt.Errorf("创建 Telegram 客户端失败: %w", err)
-	}
-	logrus.Info("✅ Telegram 客户端创建成功")
 
 	// 启动消息处理协程
 	go h.processMessages()
@@ -66,9 +72,10 @@ func (h *MessageHandler) Start() error {
 	// 启动 Telegram 监听
 	go func() {
 		logrus.Info("🔄 正在启动 Telegram 消息监听...")
-		if err := tgClient.StartListening(h.msgChan); err != nil {
-			logrus.Errorf("❌ Telegram 监听失败: %v", err)
-		}
+		updateConfig := tgbotapi.NewUpdate(0)
+		updateConfig.Timeout = 60
+		updates := h.bot.GetUpdatesChan(updateConfig)
+		h.processMessages(updates)
 	}()
 
 	// 如果启用了指标收集，启动指标报告器
@@ -80,13 +87,16 @@ func (h *MessageHandler) Start() error {
 		}).Info("📊 指标收集已启动")
 	}
 
+	logrus.Info("✅ 消息处理器启动成功")
 	return nil
 }
 
 // Stop 停止消息处理器
 func (h *MessageHandler) Stop() {
-	close(h.stopChan)
-	close(h.msgChan)
+	if !h.stopped {
+		h.stopped = true
+		close(h.stopChan)
+	}
 
 	if err := h.messageQueue.Close(); err != nil {
 		logrus.Errorf("关闭消息队列失败: %v", err)
@@ -254,4 +264,58 @@ func (h *MessageHandler) sendToDingTalk(msg *models.Message) error {
 	}
 
 	return err
+}
+
+// processMessages 处理消息
+func (h *MessageHandler) processMessages(updates tgbotapi.UpdatesChannel) {
+	for {
+		select {
+		case update := <-updates:
+			if update.Message == nil {
+				continue
+			}
+
+			// 检查是否是目标群组的消息
+			if !h.isTargetChat(update.Message.Chat.ID) {
+				continue
+			}
+
+			// 保存聊天记录
+			history := &models.ChatHistory{
+				ID:        update.Message.MessageID,
+				ChatID:    update.Message.Chat.ID,
+				Text:      update.Message.Text,
+				FromUser:  update.Message.From.UserName,
+				Timestamp: time.Unix(int64(update.Message.Date), 0),
+			}
+
+			if err := h.storage.SaveMessage(history); err != nil {
+				logrus.Errorf("保存聊天记录失败: %v", err)
+			}
+
+			// 转发消息到钉钉
+			if err := h.forwardToDingTalk(update.Message); err != nil {
+				logrus.Errorf("转发消息失败: %v", err)
+			}
+
+		case <-h.stopChan:
+			return
+		}
+	}
+}
+
+// isTargetChat 检查是否是目标群组
+func (h *MessageHandler) isTargetChat(chatID int64) bool {
+	for _, id := range config.AppConfig.Telegram.ChatIDs {
+		if id == chatID {
+			return true
+		}
+	}
+	return false
+}
+
+// forwardToDingTalk 转发消息到钉钉
+func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
+	// 实现钉钉转发逻辑
+	return nil
 }

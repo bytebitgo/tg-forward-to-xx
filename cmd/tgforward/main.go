@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -10,23 +11,41 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/user/tg-forward-to-xx/config"
+	"github.com/user/tg-forward-to-xx/internal/api"
 	"github.com/user/tg-forward-to-xx/internal/handlers"
 	"github.com/user/tg-forward-to-xx/internal/queue"
+	"github.com/user/tg-forward-to-xx/internal/storage"
 )
 
 var (
-	configPath = flag.String("config", "config/config.yaml", "配置文件路径")
-	logLevel   = flag.String("log-level", "debug", "日志级别 (debug, info, warn, error)")
-	showVersion = flag.Bool("version", false, "显示版本信息")
-	version    = "1.0.5" // 版本号
+	configPath   string
+	logLevel     string
+	showVersion  bool
+	httpPort     int
+	metricsPort  int
+	version      = "1.0.5" // 版本号
 )
 
+func init() {
+	flag.StringVar(&configPath, "config", config.GetConfigPath(), "配置文件路径")
+	flag.StringVar(&logLevel, "log-level", "info", "日志级别")
+	flag.BoolVar(&showVersion, "version", false, "显示版本信息")
+	flag.IntVar(&httpPort, "http-port", 8080, "HTTP API 端口")
+	flag.IntVar(&metricsPort, "metrics-port", 9090, "指标服务端口")
+}
+
 func main() {
-	// 解析命令行参数
 	flag.Parse()
 
-	// 检查是否只显示版本信息
-	if *showVersion {
+	// 设置日志级别
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logrus.Fatalf("无效的日志级别: %v", err)
+	}
+	logrus.SetLevel(level)
+
+	// 显示版本信息
+	if showVersion {
 		fmt.Printf("tg-forward 版本 %s\n", version)
 		os.Exit(0)
 	}
@@ -41,23 +60,16 @@ func main() {
 		ForceColors:          true,     // 强制启用颜色，即使不是终端
 	})
 
-	// 设置日志级别
-	level, err := logrus.ParseLevel(*logLevel)
-	if err != nil {
-		logrus.Fatalf("无效的日志级别 %s: %v", *logLevel, err)
-	}
-	logrus.SetLevel(level)
-
 	// 打印启动信息
 	logrus.WithFields(logrus.Fields{
 		"version":     version,
-		"config_path": *configPath,
+		"config_path": configPath,
 		"log_level":   level.String(),
 		"pid":        os.Getpid(),
 	}).Info("🚀 启动 Telegram 转发服务")
 
 	// 加载配置
-	if err := config.LoadConfig(*configPath); err != nil {
+	if err := config.LoadConfig(configPath); err != nil {
 		logrus.Fatalf("加载配置失败: %v", err)
 	}
 	
@@ -70,19 +82,40 @@ func main() {
 		"retry_interval":   config.AppConfig.Retry.Interval,
 	}).Debug("已加载配置")
 
-	// 创建队列
-	messageQueue, err := createQueue()
+	// 初始化聊天记录存储
+	chatHistoryStorage, err := storage.NewChatHistoryStorage()
 	if err != nil {
-		logrus.Fatalf("创建消息队列失败: %v", err)
+		logrus.Fatalf("初始化聊天记录存储失败: %v", err)
 	}
+	defer chatHistoryStorage.Close()
 
 	// 创建消息处理器
-	handler := handlers.NewMessageHandler(messageQueue)
-
-	// 启动处理器
-	if err := handler.Start(); err != nil {
-		logrus.Fatalf("启动消息处理器失败: %v", err)
+	messageHandler, err := handlers.NewMessageHandler(chatHistoryStorage)
+	if err != nil {
+		logrus.Fatalf("创建消息处理器失败: %v", err)
 	}
+
+	// 启动消息处理
+	if err := messageHandler.Start(); err != nil {
+		logrus.Fatalf("启动消息处理失败: %v", err)
+	}
+
+	// 创建 API 处理器
+	chatHistoryHandler := api.NewChatHistoryHandler(chatHistoryStorage)
+
+	// 设置 HTTP 路由
+	http.HandleFunc("/api/chat/history", chatHistoryHandler.QueryHandler)
+	http.HandleFunc("/api/chat/history/user", chatHistoryHandler.QueryByUserHandler)
+	http.HandleFunc("/api/chat/history/export", chatHistoryHandler.ExportHandler)
+
+	// 启动 HTTP 服务
+	go func() {
+		addr := fmt.Sprintf(":%d", httpPort)
+		logrus.Infof("HTTP API 服务启动在 %s", addr)
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			logrus.Errorf("HTTP 服务启动失败: %v", err)
+		}
+	}()
 
 	// 打印指标收集状态
 	if config.AppConfig.Metrics.Enabled {
@@ -105,7 +138,7 @@ func main() {
 	<-sigChan
 
 	logrus.Info("正在关闭服务...")
-	handler.Stop()
+	messageHandler.Stop()
 	logrus.Info("服务已关闭")
 }
 
