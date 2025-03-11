@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,15 +42,26 @@ type fileHook struct {
 
 // Fire 实现 logrus.Hook 接口
 func (h *fileHook) Fire(entry *logrus.Entry) error {
-	// 创建一个新的 Entry，复制原始 Entry 的字段
-	newEntry := logrus.NewEntry(h.logger)
-	newEntry.Data = entry.Data
-	newEntry.Time = entry.Time
-	newEntry.Level = entry.Level
-	newEntry.Message = entry.Message
-
-	// 写入日志文件
-	newEntry.Log(entry.Level, entry.Message)
+	// 使用 WithFields 来保持所有字段的一致性
+	logEntry := h.logger.WithFields(entry.Data)
+	
+	switch entry.Level {
+	case logrus.PanicLevel:
+		logEntry.Panic(entry.Message)
+	case logrus.FatalLevel:
+		logEntry.Fatal(entry.Message)
+	case logrus.ErrorLevel:
+		logEntry.Error(entry.Message)
+	case logrus.WarnLevel:
+		logEntry.Warn(entry.Message)
+	case logrus.InfoLevel:
+		logEntry.Info(entry.Message)
+	case logrus.DebugLevel:
+		logEntry.Debug(entry.Message)
+	case logrus.TraceLevel:
+		logEntry.Trace(entry.Message)
+	}
+	
 	return nil
 }
 
@@ -120,8 +130,25 @@ func main() {
 		}
 		defer logFile.Close()
 
-		// 创建一个多重输出，同时写入文件和控制台
-		logrus.SetOutput(io.MultiWriter(os.Stdout, logFile))
+		// 为文件输出创建一个新的 logger
+		fileLogger := logrus.New()
+		// 为文件设置无颜色的格式器
+		fileFormatter := &logrus.TextFormatter{
+			FullTimestamp:          true,
+			TimestampFormat:       "2006-01-02 15:04:05",
+			DisableLevelTruncation: true,    // 显示完整的级别名称
+			PadLevelText:          true,     // 保持级别文本对齐
+			DisableColors:         true,     // 禁用颜色
+			ForceQuote:           true,     // 强制引用字段值
+		}
+		fileLogger.SetFormatter(fileFormatter)
+		fileLogger.SetLevel(level)
+		fileLogger.SetOutput(logFile)
+
+		// 创建一个 hook 来同时写入文件
+		logrus.AddHook(&fileHook{
+			logger: fileLogger,
+		})
 	}
 
 	// 打印启动信息
