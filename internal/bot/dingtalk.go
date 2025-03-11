@@ -66,16 +66,19 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 				"title": fmt.Sprintf("来自 %s 的消息", msg.ChatTitle),
 				"text":  msg.Content,
 			},
-			"at": map[string]interface{}{
+		}
+		// 只有在启用 @ 功能时才添加 at 字段
+		if config.AppConfig.DingTalk.EnableAt {
+			data["at"] = map[string]interface{}{
 				"atMobiles": c.atMobiles,
 				"isAtAll":   c.isAtAll,
-			},
+			}
 		}
 	} else {
 		// 普通文本消息
-		// 如果配置了 @ 功能，在消息末尾添加 @ 信息
 		content := msg.Content
-		if len(c.atMobiles) > 0 {
+		// 只有在启用 @ 功能时才添加 @ 信息
+		if config.AppConfig.DingTalk.EnableAt && len(c.atMobiles) > 0 {
 			content += "\n"
 			for _, mobile := range c.atMobiles {
 				content += fmt.Sprintf("@%s ", mobile)
@@ -87,10 +90,13 @@ func (c *DingTalkClient) SendMessage(msg *models.Message) error {
 			"text": map[string]string{
 				"content": content,
 			},
-			"at": map[string]interface{}{
+		}
+		// 只有在启用 @ 功能时才添加 at 字段
+		if config.AppConfig.DingTalk.EnableAt {
+			data["at"] = map[string]interface{}{
 				"atMobiles": c.atMobiles,
 				"isAtAll":   c.isAtAll,
-			},
+			}
 		}
 	}
 

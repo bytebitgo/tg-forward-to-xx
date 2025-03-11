@@ -36,6 +36,9 @@ telegram:
 dingtalk:
   webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=xxx"
   secret: "your_secret"
+  enable_at: false  # 是否启用 @ 功能
+  at_mobiles: ["13800138000"]  # 需要 @ 的手机号列表
+  is_at_all: false  # 是否 @ 所有人
 
 log:
   level: "info"
