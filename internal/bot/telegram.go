@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -156,6 +157,13 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 
 		// 处理文件、图片和视频
 		if message.Document != nil {
+			logrus.WithFields(logrus.Fields{
+				"file_id":   message.Document.FileID,
+				"file_name": message.Document.FileName,
+				"mime_type": message.Document.MimeType,
+				"file_size": message.Document.FileSize,
+			}).Info("📄 收到文件消息")
+			
 			fileURL, err = c.handleFile(message.Document.FileID, "documents", message.Document.FileName, message.Document.MimeType)
 			if err != nil {
 				logrus.Errorf("处理文件失败: %v", err)
@@ -166,6 +174,13 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		} else if message.Photo != nil && len(message.Photo) > 0 {
 			// 获取最大尺寸的图片
 			photo := message.Photo[len(message.Photo)-1]
+			logrus.WithFields(logrus.Fields{
+				"file_id":   photo.FileID,
+				"width":     photo.Width,
+				"height":    photo.Height,
+				"file_size": photo.FileSize,
+			}).Info("🖼️ 收到图片消息")
+			
 			fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
 			if err != nil {
 				logrus.Errorf("处理图片失败: %v", err)
@@ -174,6 +189,15 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 				content = fmt.Sprintf("[图片]\n%s", fileURL)
 			}
 		} else if message.Video != nil {
+			logrus.WithFields(logrus.Fields{
+				"file_id":   message.Video.FileID,
+				"duration":  message.Video.Duration,
+				"width":     message.Video.Width,
+				"height":    message.Video.Height,
+				"mime_type": message.Video.MimeType,
+				"file_size": message.Video.FileSize,
+			}).Info("🎥 收到视频消息")
+			
 			fileURL, err = c.handleFile(message.Video.FileID, "videos", fmt.Sprintf("%d.mp4", message.MessageID), "video/mp4")
 			if err != nil {
 				logrus.Errorf("处理视频失败: %v", err)
@@ -239,25 +263,67 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 
 // handleFile 处理文件上传
 func (c *TelegramClient) handleFile(fileID string, category string, filename string, contentType string) (string, error) {
+	logrus.WithFields(logrus.Fields{
+		"file_id":      fileID,
+		"category":     category,
+		"filename":     filename,
+		"content_type": contentType,
+	}).Info("开始处理文件")
+
 	// 获取文件信息
 	file, err := c.bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 	if err != nil {
+		logrus.WithError(err).Error("获取文件信息失败")
 		return "", fmt.Errorf("获取文件信息失败: %w", err)
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"file_id":   fileID,
+		"file_path": file.FilePath,
+		"file_size": file.FileSize,
+	}).Info("成功获取文件信息")
+
 	// 下载文件
 	fileURL := file.Link(c.bot.Token)
+	logrus.WithField("download_url", strings.Replace(fileURL, c.bot.Token, "***", -1)).Debug("准备下载文件")
+	
 	resp, err := utils.HTTPClient.Get(fileURL)
 	if err != nil {
+		logrus.WithError(err).Error("下载文件失败")
 		return "", fmt.Errorf("下载文件失败: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		logrus.WithFields(logrus.Fields{
+			"status_code": resp.StatusCode,
+			"status":      resp.Status,
+		}).Error("下载文件失败")
+		return "", fmt.Errorf("下载文件失败，状态码: %d", resp.StatusCode)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"content_length": resp.ContentLength,
+		"content_type":   resp.Header.Get("Content-Type"),
+	}).Info("文件下载成功")
+
 	// 生成 S3 对象名称
 	objectName := filepath.Join(category, filename)
+	logrus.WithField("object_name", objectName).Info("准备上传到 S3")
 
 	// 上传到 S3
-	return c.s3Client.UploadFile(resp.Body, objectName, contentType)
+	s3URL, err := c.s3Client.UploadFile(resp.Body, objectName, contentType)
+	if err != nil {
+		logrus.WithError(err).Error("上传到 S3 失败")
+		return "", fmt.Errorf("上传到 S3 失败: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"object_name": objectName,
+		"s3_url":     s3URL,
+	}).Info("文件成功上传到 S3")
+
+	return s3URL, nil
 }
 
 // 截断字符串
