@@ -148,89 +148,30 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 	// 获取消息内容
 	content := message.Text
 	var fileURL string
-	var err error
 
-	if content == "" {
-		if message.Caption != "" {
-			content = message.Caption
+	logrus.WithFields(logrus.Fields{
+		"message_type": getMessageType(message),
+		"from":        from,
+		"chat_id":     message.Chat.ID,
+	}).Debug("开始处理消息")
+
+	// 处理文件类型的消息
+	if message.Document != nil || message.Photo != nil || message.Video != nil || message.Audio != nil {
+		content, fileURL = c.processMediaMessage(message)
+		if fileURL != "" {
+			logrus.WithFields(logrus.Fields{
+				"file_url": fileURL,
+				"content":  content,
+			}).Info("媒体文件处理完成")
 		}
-
-		// 处理文件、图片和视频
-		if message.Document != nil {
-			logrus.WithFields(logrus.Fields{
-				"file_id":   message.Document.FileID,
-				"file_name": message.Document.FileName,
-				"mime_type": message.Document.MimeType,
-				"file_size": message.Document.FileSize,
-			}).Info("📄 收到文件消息")
-			
-			fileURL, err = c.handleFile(message.Document.FileID, "documents", message.Document.FileName, message.Document.MimeType)
-			if err != nil {
-				logrus.Errorf("处理文件失败: %v", err)
-				content = fmt.Sprintf("[文件: %s (处理失败)]", message.Document.FileName)
+	} else {
+		// 处理文本消息
+		if content == "" {
+			if message.Caption != "" {
+				content = message.Caption
 			} else {
-				content = fmt.Sprintf("[文件: %s]\n%s", message.Document.FileName, fileURL)
+				content = getDefaultContent(message)
 			}
-		} else if message.Photo != nil && len(message.Photo) > 0 {
-			// 获取最大尺寸的图片
-			photo := message.Photo[len(message.Photo)-1]
-			logrus.WithFields(logrus.Fields{
-				"file_id":   photo.FileID,
-				"width":     photo.Width,
-				"height":    photo.Height,
-				"file_size": photo.FileSize,
-			}).Info("🖼️ 收到图片消息")
-			
-			fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
-			if err != nil {
-				logrus.Errorf("处理图片失败: %v", err)
-				content = "[图片 (处理失败)]"
-			} else {
-				content = fmt.Sprintf("[图片]\n%s", fileURL)
-			}
-		} else if message.Video != nil {
-			logrus.WithFields(logrus.Fields{
-				"file_id":   message.Video.FileID,
-				"duration":  message.Video.Duration,
-				"width":     message.Video.Width,
-				"height":    message.Video.Height,
-				"mime_type": message.Video.MimeType,
-				"file_size": message.Video.FileSize,
-			}).Info("🎥 收到视频消息")
-			
-			fileURL, err = c.handleFile(message.Video.FileID, "videos", fmt.Sprintf("%d.mp4", message.MessageID), "video/mp4")
-			if err != nil {
-				logrus.Errorf("处理视频失败: %v", err)
-				content = "[视频 (处理失败)]"
-			} else {
-				content = fmt.Sprintf("[视频]\n%s", fileURL)
-			}
-		} else if message.Sticker != nil {
-			content = "[贴纸]"
-		} else if message.Audio != nil {
-			fileURL, err = c.handleFile(message.Audio.FileID, "audios", message.Audio.FileName, message.Audio.MimeType)
-			if err != nil {
-				logrus.Errorf("处理音频失败: %v", err)
-				content = "[音频 (处理失败)]"
-			} else {
-				content = fmt.Sprintf("[音频: %s]\n%s", message.Audio.FileName, fileURL)
-			}
-		} else if message.Voice != nil {
-			content = "[语音]"
-		} else if message.VideoNote != nil {
-			content = "[视频留言]"
-		} else if message.Contact != nil {
-			content = "[联系人]"
-		} else if message.Location != nil {
-			content = "[位置]"
-		} else if message.Venue != nil {
-			content = "[地点]"
-		} else if message.Poll != nil {
-			content = "[投票]"
-		} else if message.Dice != nil {
-			content = "[骰子]"
-		} else {
-			content = "[未知消息类型]"
 		}
 	}
 
@@ -250,6 +191,7 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		"chat_id":   msg.ChatID,
 		"from":      msg.From,
 		"content":   msg.Content,
+		"file_url":  fileURL,
 	}).Info("✅ 消息已确认，准备转发")
 
 	// 发送到消息通道
@@ -258,6 +200,136 @@ func (c *TelegramClient) handleMessage(message *tgbotapi.Message, msgChan chan<-
 		logrus.WithField("message_id", msg.ID).Debug("消息已加入处理队列")
 	default:
 		logrus.WithField("message_id", msg.ID).Warn("消息通道已满，消息可能丢失")
+	}
+}
+
+// processMediaMessage 处理媒体消息
+func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content, fileURL string) {
+	var err error
+
+	if message.Document != nil {
+		logrus.WithFields(logrus.Fields{
+			"file_id":   message.Document.FileID,
+			"file_name": message.Document.FileName,
+			"mime_type": message.Document.MimeType,
+			"file_size": message.Document.FileSize,
+		}).Info("📄 收到文件消息")
+		
+		fileURL, err = c.handleFile(message.Document.FileID, "documents", message.Document.FileName, message.Document.MimeType)
+		if err != nil {
+			logrus.Errorf("处理文件失败: %v", err)
+			content = fmt.Sprintf("[文件: %s (处理失败)]", message.Document.FileName)
+		} else {
+			content = fmt.Sprintf("[文件: %s]\n%s", message.Document.FileName, fileURL)
+		}
+		return
+	}
+
+	if message.Photo != nil && len(message.Photo) > 0 {
+		photo := message.Photo[len(message.Photo)-1]
+		logrus.WithFields(logrus.Fields{
+			"file_id":   photo.FileID,
+			"width":     photo.Width,
+			"height":    photo.Height,
+			"file_size": photo.FileSize,
+		}).Info("🖼️ 收到图片消息")
+		
+		fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
+		if err != nil {
+			logrus.Errorf("处理图片失败: %v", err)
+			content = "[图片 (处理失败)]"
+		} else {
+			content = fmt.Sprintf("[图片]\n%s", fileURL)
+		}
+		return
+	}
+
+	if message.Video != nil {
+		logrus.WithFields(logrus.Fields{
+			"file_id":   message.Video.FileID,
+			"duration":  message.Video.Duration,
+			"width":     message.Video.Width,
+			"height":    message.Video.Height,
+			"mime_type": message.Video.MimeType,
+			"file_size": message.Video.FileSize,
+		}).Info("🎥 收到视频消息")
+		
+		fileURL, err = c.handleFile(message.Video.FileID, "videos", fmt.Sprintf("%d.mp4", message.MessageID), "video/mp4")
+		if err != nil {
+			logrus.Errorf("处理视频失败: %v", err)
+			content = "[视频 (处理失败)]"
+		} else {
+			content = fmt.Sprintf("[视频]\n%s", fileURL)
+		}
+		return
+	}
+
+	if message.Audio != nil {
+		logrus.WithFields(logrus.Fields{
+			"file_id":   message.Audio.FileID,
+			"duration":  message.Audio.Duration,
+			"mime_type": message.Audio.MimeType,
+			"file_size": message.Audio.FileSize,
+		}).Info("🎵 收到音频消息")
+		
+		fileURL, err = c.handleFile(message.Audio.FileID, "audios", message.Audio.FileName, message.Audio.MimeType)
+		if err != nil {
+			logrus.Errorf("处理音频失败: %v", err)
+			content = "[音频 (处理失败)]"
+		} else {
+			content = fmt.Sprintf("[音频: %s]\n%s", message.Audio.FileName, fileURL)
+		}
+		return
+	}
+
+	return
+}
+
+// getMessageType 获取消息类型
+func getMessageType(message *tgbotapi.Message) string {
+	switch {
+	case message.Document != nil:
+		return "document"
+	case message.Photo != nil:
+		return "photo"
+	case message.Video != nil:
+		return "video"
+	case message.Audio != nil:
+		return "audio"
+	case message.Voice != nil:
+		return "voice"
+	case message.Sticker != nil:
+		return "sticker"
+	case message.Location != nil:
+		return "location"
+	case message.Text != "":
+		return "text"
+	default:
+		return "unknown"
+	}
+}
+
+// getDefaultContent 获取默认的消息内容
+func getDefaultContent(message *tgbotapi.Message) string {
+	switch {
+	case message.Sticker != nil:
+		return "[贴纸]"
+	case message.Voice != nil:
+		return "[语音]"
+	case message.VideoNote != nil:
+		return "[视频留言]"
+	case message.Contact != nil:
+		return "[联系人]"
+	case message.Location != nil:
+		return "[位置]"
+	case message.Venue != nil:
+		return "[地点]"
+	case message.Poll != nil:
+		return "[投票]"
+	case message.Dice != nil:
+		return "[骰子]"
+	default:
+		return "[未知消息类型]"
 	}
 }
 
