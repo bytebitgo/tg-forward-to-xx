@@ -127,7 +127,7 @@ func (s *ChatHistoryStorage) ExportToCSV(chatID int64, start, end time.Time, fil
 	defer writer.Flush()
 
 	// 写入表头
-	headers := []string{"消息ID", "群组ID", "用户名", "消息内容", "时间"}
+	headers := []string{"消息ID", "群组ID", "群组名称", "用户名", "消息内容", "时间"}
 	if err := writer.Write(headers); err != nil {
 		return fmt.Errorf("写入CSV表头失败: %w", err)
 	}
@@ -137,6 +137,7 @@ func (s *ChatHistoryStorage) ExportToCSV(chatID int64, start, end time.Time, fil
 		record := []string{
 			fmt.Sprintf("%d", msg.ID),
 			fmt.Sprintf("%d", msg.ChatID),
+			msg.GroupName,
 			msg.FromUser,
 			msg.Text,
 			msg.Timestamp.Format("2006-01-02 15:04:05"),
@@ -172,7 +173,7 @@ func (s *ChatHistoryStorage) ExportUserToCSV(chatID int64, username string, star
 	defer writer.Flush()
 
 	// 写入表头
-	headers := []string{"消息ID", "群组ID", "用户名", "消息内容", "时间"}
+	headers := []string{"消息ID", "群组ID", "群组名称", "用户名", "消息内容", "时间"}
 	if err := writer.Write(headers); err != nil {
 		return fmt.Errorf("写入CSV表头失败: %w", err)
 	}
@@ -182,6 +183,7 @@ func (s *ChatHistoryStorage) ExportUserToCSV(chatID int64, username string, star
 		record := []string{
 			fmt.Sprintf("%d", msg.ID),
 			fmt.Sprintf("%d", msg.ChatID),
+			msg.GroupName,
 			msg.FromUser,
 			msg.Text,
 			msg.Timestamp.Format("2006-01-02 15:04:05"),

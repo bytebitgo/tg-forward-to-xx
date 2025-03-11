@@ -11,6 +11,7 @@ type ChatHistory struct {
 	ChatID    int64     `json:"chat_id"`    // 群组ID
 	Text      string    `json:"text"`       // 消息内容
 	FromUser  string    `json:"from_user"`  // 发送者用户名
+	GroupName string    `json:"group_name"` // 群组名称
 	Timestamp time.Time `json:"timestamp"`  // 消息时间戳
 }
 

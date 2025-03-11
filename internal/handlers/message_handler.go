@@ -175,10 +175,11 @@ func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel)
 
 			// 保存聊天记录
 			history := &models.ChatHistory{
-				ID:        int64(update.Message.MessageID), // 转换为 int64
+				ID:        int64(update.Message.MessageID),
 				ChatID:    update.Message.Chat.ID,
 				Text:      update.Message.Text,
 				FromUser:  update.Message.From.UserName,
+				GroupName: update.Message.Chat.Title,
 				Timestamp: time.Unix(int64(update.Message.Date), 0),
 			}
 
