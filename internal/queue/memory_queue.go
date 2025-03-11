@@ -13,16 +13,18 @@ type MemoryQueue struct {
 	closed   bool
 }
 
-// NewMemoryQueue 创建一个新的内存队列
-func NewMemoryQueue() (Queue, error) {
-	// 注册内存队列工厂
+// 注册内存队列工厂
+func init() {
 	Register("memory", func() (Queue, error) {
 		return &MemoryQueue{
 			messages: make([]*models.Message, 0),
 			closed:   false,
 		}, nil
 	})
+}
 
+// NewMemoryQueue 创建一个新的内存队列
+func NewMemoryQueue() (Queue, error) {
 	return &MemoryQueue{
 		messages: make([]*models.Message, 0),
 		closed:   false,

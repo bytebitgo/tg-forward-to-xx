@@ -28,12 +28,14 @@ type LevelDBQueue struct {
 const indexKey = "queue:index"
 
 // NewLevelDBQueue 创建一个新的 LevelDB 队列
-func NewLevelDBQueue() (Queue, error) {
+func init() {
 	// 注册 LevelDB 队列工厂
 	Register("leveldb", func() (Queue, error) {
 		return createLevelDBQueue()
 	})
+}
 
+func NewLevelDBQueue() (Queue, error) {
 	return createLevelDBQueue()
 }
 
