@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,7 +50,8 @@ func (h *fileHook) Fire(entry *logrus.Entry) error {
 	newEntry.Message = entry.Message
 
 	// 写入日志文件
-	return newEntry.Log(entry.Level, entry.Message)
+	newEntry.Log(entry.Level, entry.Message)
+	return nil
 }
 
 // Levels 实现 logrus.Hook 接口
