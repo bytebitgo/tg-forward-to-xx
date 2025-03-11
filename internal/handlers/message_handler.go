@@ -159,7 +159,15 @@ func (h *MessageHandler) processQueueMessages() {
 	}
 }
 
-// 处理 Telegram 更新
+// getGroupName 获取群组名称，如果为空则使用群组ID
+func (h *MessageHandler) getGroupName(chat *tgbotapi.Chat) string {
+	if chat.Title != "" {
+		return chat.Title
+	}
+	return fmt.Sprintf("群组(%d)", chat.ID)
+}
+
+// processTelegramUpdates 处理 Telegram 更新
 func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel) {
 	for {
 		select {
@@ -173,13 +181,16 @@ func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel)
 				continue
 			}
 
+			// 获取群组名称
+			groupName := h.getGroupName(update.Message.Chat)
+
 			// 保存聊天记录
 			history := &models.ChatHistory{
 				ID:        int64(update.Message.MessageID),
 				ChatID:    update.Message.Chat.ID,
 				Text:      update.Message.Text,
 				FromUser:  update.Message.From.UserName,
-				GroupName: update.Message.Chat.Title,
+				GroupName: groupName,
 				Timestamp: time.Unix(int64(update.Message.Date), 0),
 			}
 
@@ -223,10 +234,7 @@ func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
 	}
 
 	// 获取群组名称
-	groupName := message.Chat.Title
-	if groupName == "" {
-		groupName = fmt.Sprintf("群组(%d)", message.Chat.ID)
-	}
+	groupName := h.getGroupName(message.Chat)
 
 	// 构建消息内容
 	var content string
