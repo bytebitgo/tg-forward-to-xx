@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,7 +25,7 @@ var (
 	showVersion  bool
 	httpPort     int
 	metricsPort  int
-	version      = "1.0.8" // 版本号
+	version      = "1.0.9" // 版本号
 )
 
 func init() {
@@ -38,8 +39,26 @@ func init() {
 func main() {
 	flag.Parse()
 
+	// 加载配置
+	if err := config.LoadConfig(configPath); err != nil {
+		logrus.Fatalf("加载配置失败: %v", err)
+	}
+
 	// 设置日志级别
-	level, err := logrus.ParseLevel(logLevel)
+	var level logrus.Level
+	var err error
+	
+	// 优先使用命令行参数的日志级别
+	if logLevel != "" {
+		level, err = logrus.ParseLevel(logLevel)
+	} else if config.AppConfig.Log.Level != "" {
+		// 如果命令行参数未指定，使用配置文件中的日志级别
+		level, err = logrus.ParseLevel(config.AppConfig.Log.Level)
+	} else {
+		// 默认使用 info 级别
+		level = logrus.InfoLevel
+	}
+
 	if err != nil {
 		logrus.Fatalf("无效的日志级别: %v", err)
 	}
@@ -51,7 +70,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 设置日志格式和级别（在最开始就设置）
+	// 设置日志格式
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:          true,
 		TimestampFormat:       "2006-01-02 15:04:05",
@@ -61,19 +80,34 @@ func main() {
 		ForceColors:          true,     // 强制启用颜色，即使不是终端
 	})
 
+	// 如果配置了日志文件，设置日志输出
+	if config.AppConfig.Log.File != "" {
+		// 确保日志目录存在
+		logDir := filepath.Dir(config.AppConfig.Log.File)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			logrus.Fatalf("创建日志目录失败: %v", err)
+		}
+
+		// 打开日志文件
+		logFile, err := os.OpenFile(config.AppConfig.Log.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			logrus.Fatalf("打开日志文件失败: %v", err)
+		}
+		defer logFile.Close()
+
+		// 同时输出到文件和控制台
+		logrus.SetOutput(io.MultiWriter(os.Stdout, logFile))
+	}
+
 	// 打印启动信息
 	logrus.WithFields(logrus.Fields{
 		"version":     version,
 		"config_path": configPath,
 		"log_level":   level.String(),
+		"log_file":    config.AppConfig.Log.File,
 		"pid":        os.Getpid(),
 	}).Info("🚀 启动 Telegram 转发服务")
 
-	// 加载配置
-	if err := config.LoadConfig(configPath); err != nil {
-		logrus.Fatalf("加载配置失败: %v", err)
-	}
-	
 	// 打印关键配置信息
 	logrus.WithFields(logrus.Fields{
 		"telegram_chat_ids": config.AppConfig.Telegram.ChatIDs,

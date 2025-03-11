@@ -27,6 +27,13 @@ type Config struct {
 		Secret     string `mapstructure:"secret"`
 	} `mapstructure:"dingtalk"`
 
+	Log struct {
+		Level    string `mapstructure:"level"`     // 日志级别
+		File     string `mapstructure:"file"`      // 日志文件路径
+		MaxSize  int    `mapstructure:"max_size"`  // 单个日志文件最大大小（MB）
+		MaxFiles int    `mapstructure:"max_files"` // 最大保留文件数
+	} `mapstructure:"log"`
+
 	Queue struct {
 		Type string `mapstructure:"type"` // "memory" 或 "leveldb"
 		Path string `mapstructure:"path"` // LevelDB 存储路径
