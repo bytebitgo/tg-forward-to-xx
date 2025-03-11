@@ -11,7 +11,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"github.com/user/tg-forward-to-xx/config"
+	"github.com/user/tg-forward-to-xx/internal/config"
 	"github.com/user/tg-forward-to-xx/internal/models"
 	"github.com/user/tg-forward-to-xx/internal/utils"
 )
@@ -23,10 +23,19 @@ type ChatHistoryStorage struct {
 
 // NewChatHistoryStorage 创建新的聊天记录存储服务
 func NewChatHistoryStorage() (*ChatHistoryStorage, error) {
+	// 确保数据目录存在
 	dbPath := filepath.Join(config.AppConfig.Queue.Path, "chat_history")
+	if err := os.MkdirAll(dbPath, 0755); err != nil {
+		return nil, fmt.Errorf("创建聊天记录数据库目录失败: %w", err)
+	}
+
 	options := &opt.Options{
 		ErrorIfExist:   false,
 		ErrorIfMissing: false,
+		NoSync:         false,  // 启用同步写入
+		NoWriteMerge:   false,  // 启用写入合并
+		WriteBuffer:    32 * 1024 * 1024, // 32MB 写缓冲
+		BlockCacheCapacity: 16 * 1024 * 1024, // 16MB 块缓存
 	}
 
 	db, err := leveldb.OpenFile(dbPath, options)
