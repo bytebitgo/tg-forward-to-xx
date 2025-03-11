@@ -24,7 +24,7 @@ var (
 	showVersion  bool
 	httpPort     int
 	metricsPort  int
-	version      = "1.0.7" // 版本号
+	version      = "1.0.8" // 版本号
 )
 
 func init() {

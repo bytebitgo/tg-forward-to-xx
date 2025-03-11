@@ -221,6 +221,12 @@ func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
 		}
 	}
 
+	// 获取群组名称
+	groupName := message.Chat.Title
+	if groupName == "" {
+		groupName = fmt.Sprintf("群组(%d)", message.Chat.ID)
+	}
+
 	// 构建消息内容
 	var content string
 
@@ -242,19 +248,20 @@ func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
 			replyText = replyText[:97] + "..."
 		}
 
-		content = fmt.Sprintf("【%s 回复 %s】\n▶ %s\n-------------------\n%s",
+		content = fmt.Sprintf("【%s】[%s 回复 %s]\n▶ %s\n-------------------\n%s",
+			groupName,
 			sender,
 			replyTo,
 			replyText,
 			message.Text)
 	} else {
 		// 普通消息
-		content = fmt.Sprintf("【%s】\n%s", sender, message.Text)
+		content = fmt.Sprintf("【%s】[%s]\n%s", groupName, sender, message.Text)
 	}
 
 	// 转换为钉钉消息格式
 	msg := &models.Message{
-		ID:      fmt.Sprintf("%d", message.MessageID), // 将 int 转换为 string
+		ID:      fmt.Sprintf("%d", message.MessageID),
 		ChatID:  message.Chat.ID,
 		From:    sender,
 		Content: content,
