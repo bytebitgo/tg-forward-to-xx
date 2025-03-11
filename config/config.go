@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -15,6 +14,7 @@ const (
 	DefaultConfigPath = "/etc/tg-forward/config.yaml"
 )
 
+//del unused
 // Config 应用程序配置
 type Config struct {
 	Telegram struct {
