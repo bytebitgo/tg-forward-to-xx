@@ -24,15 +24,28 @@ func main() {
 	// 解析命令行参数
 	flag.Parse()
 
-	// 设置日志级别
-	setLogLevel(*logLevel)
+	// 设置日志格式和级别（在最开始就设置）
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:          true,
+		TimestampFormat:       "2006-01-02 15:04:05",
+		DisableLevelTruncation: true,    // 显示完整的级别名称
+		PadLevelText:          true,     // 保持级别文本对齐
+		DisableColors:         false,    // 启用颜色
+	})
 
-	// 打印版本和配置信息
+	// 设置日志级别
+	level, err := logrus.ParseLevel(*logLevel)
+	if err != nil {
+		logrus.Fatalf("无效的日志级别 %s: %v", *logLevel, err)
+	}
+	logrus.SetLevel(level)
+
+	// 打印启动信息
 	logrus.WithFields(logrus.Fields{
 		"version":     version,
 		"config_path": *configPath,
-		"log_level":   *logLevel,
-	}).Info("启动 Telegram 转发到钉钉服务")
+		"log_level":   level.String(),
+	}).Info("启动服务")
 
 	// 加载配置
 	if err := config.LoadConfig(*configPath); err != nil {
@@ -89,24 +102,8 @@ func main() {
 
 // 设置日志级别
 func setLogLevel(level string) {
-	switch level {
-	case "debug":
-		logrus.SetLevel(logrus.DebugLevel)
-	case "info":
-		logrus.SetLevel(logrus.InfoLevel)
-	case "warn":
-		logrus.SetLevel(logrus.WarnLevel)
-	case "error":
-		logrus.SetLevel(logrus.ErrorLevel)
-	default:
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-
-	// 设置日志格式
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-	})
+	// 这个函数现在可以删除，因为我们在 main 函数中直接设置了日志级别
+	logrus.Warnf("setLogLevel 函数已废弃，请使用命令行参数 -log-level 设置日志级别")
 }
 
 // 创建队列

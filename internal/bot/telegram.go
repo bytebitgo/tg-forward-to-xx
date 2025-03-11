@@ -23,7 +23,7 @@ func NewTelegramClient() (*TelegramClient, error) {
 		return nil, fmt.Errorf("Telegram Bot Token 未配置")
 	}
 
-	logrus.Debug("正在连接到 Telegram API...")
+	logrus.Info("🔄 正在连接到 Telegram API...")
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, fmt.Errorf("创建 Telegram 机器人失败: %w", err)
@@ -38,7 +38,7 @@ func NewTelegramClient() (*TelegramClient, error) {
 		"bot_name":     bot.Self.UserName,
 		"bot_is_bot":   bot.Self.IsBot,
 		"auth_success": true,
-	}).Info("Telegram Bot 认证成功")
+	}).Info("✅ Telegram Bot 认证成功")
 
 	// 创建聊天 ID 映射
 	chatIDs := make(map[int64]bool)
@@ -47,7 +47,7 @@ func NewTelegramClient() (*TelegramClient, error) {
 	} else {
 		for _, id := range config.AppConfig.Telegram.ChatIDs {
 			chatIDs[id] = true
-			logrus.Infof("已添加监听聊天 ID: %d", id)
+			logrus.WithField("chat_id", id).Info("➕ 添加监听聊天")
 		}
 	}
 
@@ -59,7 +59,7 @@ func NewTelegramClient() (*TelegramClient, error) {
 
 // StartListening 开始监听消息
 func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
-	logrus.Info("正在初始化 Telegram 消息监听...")
+	logrus.Info("🚀 初始化 Telegram 消息监听...")
 
 	// 配置更新
 	u := tgbotapi.NewUpdate(0)
@@ -69,26 +69,26 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 		"timeout": u.Timeout,
 		"offset":  u.Offset,
 		"limit":   u.Limit,
-	}).Debug("Telegram 更新配置")
+	}).Debug("⚙️ Telegram 更新配置")
 
 	// 获取更新通道
 	updates := c.bot.GetUpdatesChan(u)
-	logrus.Info("成功建立 Telegram 更新通道连接")
+	logrus.Info("✅ 成功建立 Telegram 更新通道连接")
 
 	// 打印监听配置
 	logrus.WithFields(logrus.Fields{
 		"chat_ids_count": len(c.chatIDs),
 		"chat_ids":       c.chatIDs,
-	}).Info("开始监听 Telegram 消息")
+	}).Info("👂 开始监听 Telegram 消息")
 
 	// 发送测试消息到日志
-	logrus.Info("Bot 开始工作，等待消息...")
+	logrus.Info("🤖 Bot 开始工作，等待消息...")
 
 	for update := range updates {
-		logrus.Debug("收到更新事件...")
+		logrus.Debug("📥 收到更新事件")
 
 		if update.Message == nil {
-			logrus.Debug("收到非消息更新，已忽略")
+			logrus.Debug("⏭️ 收到非消息更新，已忽略")
 			continue
 		}
 
@@ -109,19 +109,19 @@ func (c *TelegramClient) StartListening(msgChan chan<- *models.Message) error {
 		// 检查是否是监听的聊天 ID
 		if _, ok := c.chatIDs[update.Message.Chat.ID]; !ok {
 			logrus.WithFields(logrus.Fields{
-				"chat_id":    update.Message.Chat.ID,
-				"chat_title": update.Message.Chat.Title,
-				"chat_type":  update.Message.Chat.Type,
+				"chat_id":          update.Message.Chat.ID,
+				"chat_title":       update.Message.Chat.Title,
+				"chat_type":        update.Message.Chat.Type,
 				"configured_chats": c.chatIDs,
-			}).Warn("⚠️ 此消息来自未配置的聊天，将被忽略。如需转发此聊天的消息，请在配置文件中添加此 chat_id")
+			}).Warn("⚠️ 此消息来自未配置的聊天，将被忽略")
 			continue
 		}
 
-		logrus.Debug("消息来自已配置的聊天，准备处理...")
+		logrus.Debug("✅ 消息来自已配置的聊天，准备处理")
 		c.handleMessage(update.Message, msgChan)
 	}
 
-	logrus.Warn("Telegram 更新通道已关闭")
+	logrus.Warn("⚠️ Telegram 更新通道已关闭")
 	return nil
 }
 
