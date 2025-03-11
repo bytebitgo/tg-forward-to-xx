@@ -249,17 +249,17 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 	}
 
 	if message.Photo != nil && len(message.Photo) > 0 {
+		// 获取最大尺寸的图片
 		photo := message.Photo[len(message.Photo)-1]
 		logrus.WithFields(logrus.Fields{
-			"file_id":     photo.FileID,
-			"width":       photo.Width,
-			"height":      photo.Height,
-			"file_size":   photo.FileSize,
-			"photo_count": len(message.Photo),
-		}).Debug("开始处理图片文件")
-		
+			"file_id":   photo.FileID,
+			"file_size": photo.FileSize,
+			"width":     photo.Width,
+			"height":    photo.Height,
+		}).Debug("开始处理图片")
+
 		var err error
-		fileURL, err = c.handleFile(photo.FileID, "images", fmt.Sprintf("%d.jpg", message.MessageID), "image/jpeg")
+		fileURL, err = c.handleFile(photo.FileID, "photos", fmt.Sprintf("photo_%dx%d.jpg", photo.Width, photo.Height), "image/jpeg")
 		if err != nil {
 			logrus.WithError(err).Error("处理图片失败")
 			content = "[图片 (处理失败)]"
@@ -273,20 +273,20 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 	if message.Video != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id":   message.Video.FileID,
-			"duration":  message.Video.Duration,
-			"width":     message.Video.Width,
-			"height":    message.Video.Height,
+			"file_name": message.Video.FileName,
 			"mime_type": message.Video.MimeType,
 			"file_size": message.Video.FileSize,
-		}).Info("🎥 收到视频消息")
-		
+			"duration":  message.Video.Duration,
+		}).Debug("开始处理视频")
+
 		var err error
-		fileURL, err = c.handleFile(message.Video.FileID, "videos", fmt.Sprintf("%d.mp4", message.MessageID), "video/mp4")
+		fileURL, err = c.handleFile(message.Video.FileID, "videos", message.Video.FileName, message.Video.MimeType)
 		if err != nil {
 			logrus.WithError(err).Error("处理视频失败")
 			content = "[视频 (处理失败)]"
 		} else {
 			content = fmt.Sprintf("[视频]\n%s", fileURL)
+			logrus.WithField("file_url", fileURL).Info("视频处理成功")
 		}
 		return
 	}
@@ -294,22 +294,26 @@ func (c *TelegramClient) processMediaMessage(message *tgbotapi.Message) (content
 	if message.Audio != nil {
 		logrus.WithFields(logrus.Fields{
 			"file_id":   message.Audio.FileID,
-			"duration":  message.Audio.Duration,
+			"file_name": message.Audio.FileName,
 			"mime_type": message.Audio.MimeType,
 			"file_size": message.Audio.FileSize,
-		}).Info("🎵 收到音频消息")
-		
+			"duration":  message.Audio.Duration,
+		}).Debug("开始处理音频")
+
 		var err error
 		fileURL, err = c.handleFile(message.Audio.FileID, "audios", message.Audio.FileName, message.Audio.MimeType)
 		if err != nil {
 			logrus.WithError(err).Error("处理音频失败")
-			content = "[音频 (处理失败)]"
+			content = fmt.Sprintf("[音频: %s (处理失败)]", message.Audio.FileName)
 		} else {
 			content = fmt.Sprintf("[音频: %s]\n%s", message.Audio.FileName, fileURL)
+			logrus.WithField("file_url", fileURL).Info("音频处理成功")
 		}
 		return
 	}
 
+	logrus.Warn("未识别的媒体类型")
+	content = "[未知媒体类型]"
 	return
 }
 
@@ -361,7 +365,7 @@ func getDefaultContent(message *tgbotapi.Message) string {
 	}
 }
 
-// handleFile 处理文件上传
+// handleFile 处理文件
 func (c *TelegramClient) handleFile(fileID string, category string, filename string, contentType string) (string, error) {
 	logrus.WithFields(logrus.Fields{
 		"file_id":      fileID,
@@ -394,7 +398,7 @@ func (c *TelegramClient) handleFile(fileID string, category string, filename str
 
 	// 2. 获取下载链接并下载
 	fileURL := file.Link(c.bot.Token)
-	logrus.Debug("开始下载文件...")
+	logrus.WithField("download_url", fileURL).Debug("开始下载文件...")
 	
 	resp, err := utils.HTTPClient.Get(fileURL)
 	if err != nil {
