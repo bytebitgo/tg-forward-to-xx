@@ -17,12 +17,19 @@ import (
 var (
 	configPath = flag.String("config", "config/config.yaml", "配置文件路径")
 	logLevel   = flag.String("log-level", "debug", "日志级别 (debug, info, warn, error)")
+	showVersion = flag.Bool("version", false, "显示版本信息")
 	version    = "1.0.5" // 版本号
 )
 
 func main() {
 	// 解析命令行参数
 	flag.Parse()
+
+	// 检查是否只显示版本信息
+	if *showVersion {
+		fmt.Printf("tg-forward 版本 %s\n", version)
+		os.Exit(0)
+	}
 
 	// 设置日志格式和级别（在最开始就设置）
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -31,6 +38,7 @@ func main() {
 		DisableLevelTruncation: true,    // 显示完整的级别名称
 		PadLevelText:          true,     // 保持级别文本对齐
 		DisableColors:         false,    // 启用颜色
+		ForceColors:          true,     // 强制启用颜色，即使不是终端
 	})
 
 	// 设置日志级别
@@ -45,7 +53,8 @@ func main() {
 		"version":     version,
 		"config_path": *configPath,
 		"log_level":   level.String(),
-	}).Info("启动服务")
+		"pid":        os.Getpid(),
+	}).Info("🚀 启动 Telegram 转发服务")
 
 	// 加载配置
 	if err := config.LoadConfig(*configPath); err != nil {

@@ -46,35 +46,38 @@ func NewMessageHandler(q queue.Queue) *MessageHandler {
 
 // Start 启动消息处理器
 func (h *MessageHandler) Start() error {
-	logrus.Info("正在启动消息处理器...")
+	logrus.Info("🔄 正在启动消息处理器...")
 
 	// 启动 Telegram 客户端
 	tgClient, err := bot.NewTelegramClient()
 	if err != nil {
 		return fmt.Errorf("创建 Telegram 客户端失败: %w", err)
 	}
-	logrus.Info("Telegram 客户端创建成功")
+	logrus.Info("✅ Telegram 客户端创建成功")
 
 	// 启动消息处理协程
 	go h.processMessages()
-	logrus.Info("消息处理协程已启动")
+	logrus.Info("✅ 消息处理协程已启动")
 
 	// 启动重试协程
 	go h.retryFailedMessages()
-	logrus.Info("失败消息重试协程已启动")
+	logrus.Info("✅ 失败消息重试协程已启动")
 
 	// 启动 Telegram 监听
 	go func() {
-		logrus.Info("正在启动 Telegram 消息监听...")
+		logrus.Info("🔄 正在启动 Telegram 消息监听...")
 		if err := tgClient.StartListening(h.msgChan); err != nil {
-			logrus.Errorf("Telegram 监听失败: %v", err)
+			logrus.Errorf("❌ Telegram 监听失败: %v", err)
 		}
 	}()
 
 	// 如果启用了指标收集，启动指标报告器
 	if h.metricsReporter != nil {
 		h.metricsReporter.Start()
-		logrus.Info("指标收集已启动，间隔: ", config.AppConfig.Metrics.Interval, "秒")
+		logrus.WithFields(logrus.Fields{
+			"interval": config.AppConfig.Metrics.Interval,
+			"path":     config.AppConfig.Metrics.OutputFile,
+		}).Info("📊 指标收集已启动")
 	}
 
 	return nil
