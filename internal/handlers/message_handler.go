@@ -62,7 +62,7 @@ func (h *MessageHandler) Start() error {
 	logrus.Info("🔄 正在启动消息处理器...")
 
 	// 启动消息处理协程
-	go h.processMessages()
+	go h.processQueueMessages()
 	logrus.Info("✅ 消息处理协程已启动")
 
 	// 启动重试协程
@@ -75,7 +75,7 @@ func (h *MessageHandler) Start() error {
 		updateConfig := tgbotapi.NewUpdate(0)
 		updateConfig.Timeout = 60
 		updates := h.bot.GetUpdatesChan(updateConfig)
-		h.processMessages(updates)
+		h.processTelegramUpdates(updates)
 	}()
 
 	// 如果启用了指标收集，启动指标报告器
@@ -109,8 +109,8 @@ func (h *MessageHandler) Stop() {
 	}
 }
 
-// 处理消息
-func (h *MessageHandler) processMessages() {
+// 处理消息队列中的消息
+func (h *MessageHandler) processQueueMessages() {
 	logrus.Info("消息处理协程开始运行")
 	
 	for {
@@ -157,6 +157,60 @@ func (h *MessageHandler) processMessages() {
 			metrics.AddMessageLatency(time.Since(startTime))
 		}
 	}
+}
+
+// 处理 Telegram 更新
+func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel) {
+	for {
+		select {
+		case update := <-updates:
+			if update.Message == nil {
+				continue
+			}
+
+			// 检查是否是目标群组的消息
+			if !h.isTargetChat(update.Message.Chat.ID) {
+				continue
+			}
+
+			// 保存聊天记录
+			history := &models.ChatHistory{
+				ID:        int64(update.Message.MessageID), // 转换为 int64
+				ChatID:    update.Message.Chat.ID,
+				Text:      update.Message.Text,
+				FromUser:  update.Message.From.UserName,
+				Timestamp: time.Unix(int64(update.Message.Date), 0),
+			}
+
+			if err := h.storage.SaveMessage(history); err != nil {
+				logrus.Errorf("保存聊天记录失败: %v", err)
+			}
+
+			// 转发消息到钉钉
+			if err := h.forwardToDingTalk(update.Message); err != nil {
+				logrus.Errorf("转发消息失败: %v", err)
+			}
+
+		case <-h.stopChan:
+			return
+		}
+	}
+}
+
+// isTargetChat 检查是否是目标群组
+func (h *MessageHandler) isTargetChat(chatID int64) bool {
+	for _, id := range config.AppConfig.Telegram.ChatIDs {
+		if id == chatID {
+			return true
+		}
+	}
+	return false
+}
+
+// forwardToDingTalk 转发消息到钉钉
+func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
+	// 实现钉钉转发逻辑
+	return nil
 }
 
 // 重试失败的消息
@@ -264,58 +318,4 @@ func (h *MessageHandler) sendToDingTalk(msg *models.Message) error {
 	}
 
 	return err
-}
-
-// processMessages 处理消息
-func (h *MessageHandler) processMessages(updates tgbotapi.UpdatesChannel) {
-	for {
-		select {
-		case update := <-updates:
-			if update.Message == nil {
-				continue
-			}
-
-			// 检查是否是目标群组的消息
-			if !h.isTargetChat(update.Message.Chat.ID) {
-				continue
-			}
-
-			// 保存聊天记录
-			history := &models.ChatHistory{
-				ID:        update.Message.MessageID,
-				ChatID:    update.Message.Chat.ID,
-				Text:      update.Message.Text,
-				FromUser:  update.Message.From.UserName,
-				Timestamp: time.Unix(int64(update.Message.Date), 0),
-			}
-
-			if err := h.storage.SaveMessage(history); err != nil {
-				logrus.Errorf("保存聊天记录失败: %v", err)
-			}
-
-			// 转发消息到钉钉
-			if err := h.forwardToDingTalk(update.Message); err != nil {
-				logrus.Errorf("转发消息失败: %v", err)
-			}
-
-		case <-h.stopChan:
-			return
-		}
-	}
-}
-
-// isTargetChat 检查是否是目标群组
-func (h *MessageHandler) isTargetChat(chatID int64) bool {
-	for _, id := range config.AppConfig.Telegram.ChatIDs {
-		if id == chatID {
-			return true
-		}
-	}
-	return false
-}
-
-// forwardToDingTalk 转发消息到钉钉
-func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
-	// 实现钉钉转发逻辑
-	return nil
 }
