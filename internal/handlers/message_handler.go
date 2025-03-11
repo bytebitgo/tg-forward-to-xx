@@ -209,8 +209,59 @@ func (h *MessageHandler) isTargetChat(chatID int64) bool {
 
 // forwardToDingTalk 转发消息到钉钉
 func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
-	// 实现钉钉转发逻辑
-	return nil
+	// 构建发送者信息
+	var sender string
+	if message.From.UserName != "" {
+		sender = "@" + message.From.UserName
+	} else {
+		// 如果没有用户名，使用姓名
+		sender = message.From.FirstName
+		if message.From.LastName != "" {
+			sender += " " + message.From.LastName
+		}
+	}
+
+	// 构建消息内容
+	var content string
+
+	// 如果是回复消息，添加回复信息
+	if message.ReplyToMessage != nil {
+		var replyTo string
+		if message.ReplyToMessage.From.UserName != "" {
+			replyTo = "@" + message.ReplyToMessage.From.UserName
+		} else {
+			replyTo = message.ReplyToMessage.From.FirstName
+			if message.ReplyToMessage.From.LastName != "" {
+				replyTo += " " + message.ReplyToMessage.From.LastName
+			}
+		}
+
+		// 添加回复的原始消息（最多显示100个字符，避免太长）
+		replyText := message.ReplyToMessage.Text
+		if len(replyText) > 100 {
+			replyText = replyText[:97] + "..."
+		}
+
+		content = fmt.Sprintf("【%s 回复 %s】\n▶ %s\n-------------------\n%s",
+			sender,
+			replyTo,
+			replyText,
+			message.Text)
+	} else {
+		// 普通消息
+		content = fmt.Sprintf("【%s】\n%s", sender, message.Text)
+	}
+
+	// 转换为钉钉消息格式
+	msg := &models.Message{
+		ID:      message.MessageID,
+		ChatID:  message.Chat.ID,
+		From:    sender,
+		Content: content,
+	}
+
+	// 发送到钉钉
+	return h.dingTalk.SendMessage(msg)
 }
 
 // 重试失败的消息
