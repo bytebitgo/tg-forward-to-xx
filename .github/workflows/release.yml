@@ -12,10 +12,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v3
         with:
           go-version: '1.21'
           cache: true
@@ -38,7 +38,7 @@ jobs:
       - name: Create config files
         run: |
           # 创建默认的 config.yaml
-          cat > config.yaml << EOF
+          cat > config.yaml << 'EOF'
           telegram:
             token: ""
             chat_ids: []
@@ -68,7 +68,7 @@ jobs:
           EOF
           
           # 创建默认的 env.yaml
-          cat > env.yaml << EOF
+          cat > env.yaml << 'EOF'
           telegram:
             token: ""
             chat_ids: []
@@ -99,7 +99,7 @@ jobs:
 
       - name: Create systemd service
         run: |
-          cat > tg-forward.service << EOF
+          cat > tg-forward.service << 'EOF'
           [Unit]
           Description=Telegram Forward Service
           After=network.target
@@ -131,7 +131,7 @@ jobs:
 
       - name: Create after-install script
         run: |
-          cat > after-install.sh << EOF
+          cat > after-install.sh << 'EOF'
           #!/bin/sh
           set -e
           
@@ -159,7 +159,7 @@ jobs:
 
       - name: Create before-remove script
         run: |
-          cat > before-remove.sh << EOF
+          cat > before-remove.sh << 'EOF'
           #!/bin/sh
           set -e
           
@@ -172,13 +172,14 @@ jobs:
 
       - name: Build packages with FPM
         run: |
-          VERSION=\$(echo \${{ github.ref_name }} | sed 's/^v//')
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
           
           # 构建 RPM 包
           fpm -s dir -t rpm \
-            -p tg-forward-\${VERSION}-1.x86_64.rpm \
+            -p "tg-forward-${VERSION}-1.x86_64.rpm" \
             --name tg-forward \
-            --version \${VERSION} \
+            --version "${VERSION}" \
             --architecture x86_64 \
             --description "Telegram Forward Service" \
             --url "https://github.com/user/tg-forward-to-xx" \
@@ -196,9 +197,9 @@ jobs:
           
           # 构建 DEB 包
           fpm -s dir -t deb \
-            -p tg-forward_\${VERSION}_amd64.deb \
+            -p "tg-forward_${VERSION}_amd64.deb" \
             --name tg-forward \
-            --version \${VERSION} \
+            --version "${VERSION}" \
             --architecture amd64 \
             --description "Telegram Forward Service" \
             --url "https://github.com/user/tg-forward-to-xx" \
