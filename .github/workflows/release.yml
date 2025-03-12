@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm build-essential debhelper devscripts
+          sudo apt-get install -y rpm build-essential debhelper devscripts systemd systemd-devel libsystemd-dev
 
       - name: Build binary
         run: |
