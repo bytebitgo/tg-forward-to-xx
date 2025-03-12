@@ -20,10 +20,16 @@ jobs:
           go-version: '1.21'
           cache: true
       
-      - name: Install dependencies
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+
+      - name: Install FPM and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm build-essential debhelper devscripts systemd systemd-devel libsystemd-dev
+          sudo apt-get install -y rpm build-essential debhelper devscripts
+          gem install fpm
 
       - name: Build binary
         run: |
@@ -91,29 +97,9 @@ jobs:
               path: "/metrics"
           EOF
 
-      - name: Prepare package files
+      - name: Create systemd service
         run: |
-          # 创建打包所需的目录结构
-          mkdir -p packaging/rpm/SPECS
-          mkdir -p packaging/rpm/SOURCES
-          mkdir -p packaging/deb/tg-forward/usr/bin
-          mkdir -p packaging/deb/tg-forward/etc/tg-forward
-          mkdir -p packaging/deb/tg-forward/lib/systemd/system
-          mkdir -p packaging/deb/tg-forward/var/lib/tg-forward
-          mkdir -p packaging/deb/tg-forward/var/log/tg-forward
-          
-          # 复制二进制文件
-          cp tg-forward packaging/rpm/SOURCES/
-          cp tg-forward packaging/deb/tg-forward/usr/bin/
-          
-          # 复制配置文件
-          cp config.yaml packaging/rpm/SOURCES/
-          cp env.yaml packaging/rpm/SOURCES/
-          cp config.yaml packaging/deb/tg-forward/etc/tg-forward/
-          cp env.yaml packaging/deb/tg-forward/etc/tg-forward/
-          
-          # 创建 systemd 服务文件
-          cat > packaging/rpm/SOURCES/tg-forward.service << EOF
+          cat > tg-forward.service << EOF
           [Unit]
           Description=Telegram Forward Service
           After=network.target
@@ -127,153 +113,114 @@ jobs:
           [Install]
           WantedBy=multi-user.target
           EOF
-          
-          cp packaging/rpm/SOURCES/tg-forward.service packaging/deb/tg-forward/lib/systemd/system/
 
-      - name: Create RPM spec file
+      - name: Prepare package files
         run: |
-          cat > packaging/rpm/SPECS/tg-forward.spec << EOF
-          Name:           tg-forward
-          Version:        1.0.20
-          Release:        1%{?dist}
-          Summary:        Telegram Forward Service
+          # 创建临时目录结构
+          mkdir -p ./package-root/usr/bin
+          mkdir -p ./package-root/etc/tg-forward
+          mkdir -p ./package-root/lib/systemd/system
+          mkdir -p ./package-root/var/lib/tg-forward
+          mkdir -p ./package-root/var/log/tg-forward
           
-          License:        MIT
-          URL:            https://github.com/user/tg-forward-to-xx
-          Source0:        %{name}
-          Source1:        env.yaml
-          Source2:        config.yaml
-          Source3:        %{name}.service
-          
-          BuildRequires:  systemd
-          Requires:       systemd
-          
-          %description
-          A service that forwards messages from Telegram to other platforms.
-          
-          %prep
-          
-          %build
-          
-          %install
-          mkdir -p %{buildroot}/usr/bin
-          mkdir -p %{buildroot}/etc/tg-forward
-          mkdir -p %{buildroot}%{_unitdir}
-          mkdir -p %{buildroot}/var/lib/tg-forward
-          mkdir -p %{buildroot}/var/log/tg-forward
-          
-          install -m 755 %{SOURCE0} %{buildroot}/usr/bin/%{name}
-          install -m 644 %{SOURCE1} %{buildroot}/etc/tg-forward/env.yaml
-          install -m 644 %{SOURCE2} %{buildroot}/etc/tg-forward/config.yaml
-          install -m 644 %{SOURCE3} %{buildroot}%{_unitdir}/%{name}.service
-          
-          %files
-          %attr(755, root, root) /usr/bin/%{name}
-          %attr(644, root, root) /etc/tg-forward/env.yaml
-          %attr(644, root, root) /etc/tg-forward/config.yaml
-          %attr(644, root, root) %{_unitdir}/%{name}.service
-          %attr(755, tg-forward, tg-forward) /var/lib/tg-forward
-          %attr(755, tg-forward, tg-forward) /var/log/tg-forward
-          
-          %pre
-          # 创建 tg-forward 用户和组
-          getent group tg-forward >/dev/null || groupadd -r tg-forward
-          getent passwd tg-forward >/dev/null || useradd -r -g tg-forward -s /sbin/nologin -d /var/lib/tg-forward tg-forward
-          
-          %post
-          %systemd_post %{name}.service
-          
-          %preun
-          %systemd_preun %{name}.service
-          
-          %postun
-          %systemd_postun_with_restart %{name}.service
-          
-          %changelog
-          * Sun Mar 24 2024 TG Forward Team <team@example.com> - 1.0.20-1
-          - Initial RPM release
-          EOF
+          # 复制文件到临时目录
+          cp tg-forward ./package-root/usr/bin/
+          cp config.yaml ./package-root/etc/tg-forward/
+          cp env.yaml ./package-root/etc/tg-forward/
+          cp tg-forward.service ./package-root/lib/systemd/system/
 
-      - name: Create DEB control file
+      - name: Create after-install script
         run: |
-          mkdir -p packaging/deb/tg-forward/DEBIAN
-          cat > packaging/deb/tg-forward/DEBIAN/control << EOF
-          Package: tg-forward
-          Version: 1.0.20
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Depends: systemd, adduser
-          Maintainer: TG Forward Team <team@example.com>
-          Description: Telegram Forward Service
-           A service that forwards messages from Telegram to other platforms.
-          EOF
-          
-          cat > packaging/deb/tg-forward/DEBIAN/preinst << EOF
+          cat > after-install.sh << EOF
           #!/bin/sh
           set -e
           
-          # 创建 tg-forward 用户和组
+          # 创建用户和组
           if ! getent group tg-forward >/dev/null; then
-              addgroup --system tg-forward
+              groupadd -r tg-forward
           fi
           if ! getent passwd tg-forward >/dev/null; then
-              adduser --system --home /var/lib/tg-forward --no-create-home --ingroup tg-forward --disabled-password --shell /sbin/nologin tg-forward
+              useradd -r -g tg-forward -s /sbin/nologin -d /var/lib/tg-forward tg-forward
           fi
-          
-          exit 0
-          EOF
-          
-          cat > packaging/deb/tg-forward/DEBIAN/postinst << EOF
-          #!/bin/sh
-          set -e
           
           # 设置目录权限
           chown -R tg-forward:tg-forward /var/lib/tg-forward
           chown -R tg-forward:tg-forward /var/log/tg-forward
           
-          # 启用并启动服务
+          # 重新加载 systemd
           systemctl daemon-reload
-          systemctl enable tg-forward
-          systemctl start tg-forward
           
-          exit 0
+          # 启用服务
+          systemctl enable tg-forward
+          systemctl start tg-forward || true
           EOF
           
-          cat > packaging/deb/tg-forward/DEBIAN/prerm << EOF
+          chmod +x after-install.sh
+
+      - name: Create before-remove script
+        run: |
+          cat > before-remove.sh << EOF
           #!/bin/sh
           set -e
           
-          # 停止并禁用服务
-          systemctl stop tg-forward
-          systemctl disable tg-forward
-          
-          exit 0
+          # 停止服务
+          systemctl stop tg-forward || true
+          systemctl disable tg-forward || true
           EOF
           
-          chmod 755 packaging/deb/tg-forward/DEBIAN/preinst
-          chmod 755 packaging/deb/tg-forward/DEBIAN/postinst
-          chmod 755 packaging/deb/tg-forward/DEBIAN/prerm
+          chmod +x before-remove.sh
 
-      - name: Build RPM package
+      - name: Build packages with FPM
         run: |
-          cd packaging/rpm
-          rpmbuild --define "_topdir $(pwd)" -bb SPECS/tg-forward.spec
-          cd ../..
-
-      - name: Build DEB package
-        run: |
-          cd packaging
-          dpkg-deb --build deb/tg-forward
-          cd ..
+          VERSION=\$(echo \${{ github.ref_name }} | sed 's/^v//')
+          
+          # 构建 RPM 包
+          fpm -s dir -t rpm \
+            -p tg-forward-\${VERSION}-1.x86_64.rpm \
+            --name tg-forward \
+            --version \${VERSION} \
+            --architecture x86_64 \
+            --description "Telegram Forward Service" \
+            --url "https://github.com/user/tg-forward-to-xx" \
+            --maintainer "TG Forward Team <team@example.com>" \
+            --vendor "TG Forward Team" \
+            --license "MIT" \
+            --depends systemd \
+            --after-install after-install.sh \
+            --before-remove before-remove.sh \
+            --directories /var/lib/tg-forward \
+            --directories /var/log/tg-forward \
+            --config-files /etc/tg-forward/config.yaml \
+            --config-files /etc/tg-forward/env.yaml \
+            -C ./package-root .
+          
+          # 构建 DEB 包
+          fpm -s dir -t deb \
+            -p tg-forward_\${VERSION}_amd64.deb \
+            --name tg-forward \
+            --version \${VERSION} \
+            --architecture amd64 \
+            --description "Telegram Forward Service" \
+            --url "https://github.com/user/tg-forward-to-xx" \
+            --maintainer "TG Forward Team <team@example.com>" \
+            --vendor "TG Forward Team" \
+            --license "MIT" \
+            --depends systemd \
+            --after-install after-install.sh \
+            --before-remove before-remove.sh \
+            --directories /var/lib/tg-forward \
+            --directories /var/log/tg-forward \
+            --config-files /etc/tg-forward/config.yaml \
+            --config-files /etc/tg-forward/env.yaml \
+            -C ./package-root .
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            packaging/rpm/RPMS/x86_64/tg-forward-*.rpm
-            packaging/deb/tg-forward.deb
+            tg-forward-*.rpm
+            tg-forward_*.deb
           draft: false
           prerelease: false
           generate_release_notes: true 
