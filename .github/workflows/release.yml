@@ -110,8 +110,8 @@ jobs:
           
           [Service]
           Type=simple
-          User=tg-forward
-          ExecStart=/usr/bin/tg-forward
+          User=root
+          ExecStart=/usr/bin/tg-forward -config /etc/tg-forward/env.yaml
           Restart=always
           
           [Install]
