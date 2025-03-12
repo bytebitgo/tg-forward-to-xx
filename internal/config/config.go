@@ -43,6 +43,7 @@ type Config struct {
 	Retry    *RetryConfig    `mapstructure:"retry"`
 	Metrics  *MetricsConfig  `mapstructure:"metrics"`
 	S3       *S3Config       `mapstructure:"s3"`
+	Bark     *BarkConfig     `mapstructure:"bark"`
 }
 
 // TelegramConfig Telegram 配置
@@ -118,6 +119,14 @@ type S3Config struct {
 	SecretAccessKey string `mapstructure:"secret_access_key"`// 访问密钥
 	UseSSL          bool   `mapstructure:"use_ssl"`         // 是否使用 SSL
 	PublicBaseURL   string `mapstructure:"public_base_url"` // 公共访问基础 URL
+}
+
+// BarkConfig Bark 通知配置
+type BarkConfig struct {
+	Enabled bool     `mapstructure:"enabled"`    // 是否启用 Bark 通知
+	Keys    []string `mapstructure:"keys"`       // Bark 设备密钥列表
+	Sound   string   `mapstructure:"sound"`      // 通知声音
+	Icon    string   `mapstructure:"icon"`       // 通知图标
 }
 
 // AppConfig 全局配置实例

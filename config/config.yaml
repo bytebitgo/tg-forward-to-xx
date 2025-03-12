@@ -10,6 +10,12 @@ dingtalk:
   is_at_all: false  # 是否 @ 所有人
   notify_verbose: false  # 是否显示详细信息，设为 false 则只显示消息类型提醒
 
+bark:
+  enabled: true
+  keys: ["YOUR_BARK_KEY1", "YOUR_BARK_KEY2"]
+  sound: "minuet"
+  icon: "https://day.app/assets/images/avatar.jpg"
+
 log:
   level: "debug"  # 日志级别：debug, info, warn, error
   file_path: "/var/log/tg-forward/main.log"  # 日志文件路径

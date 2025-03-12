@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 // MessageHandler 消息处理器
 type MessageHandler struct {
 	dingTalk        *bot.DingTalkClient
+	bark            *bot.BarkClient
 	messageQueue    queue.Queue
 	maxAttempts     int
 	retryInterval   time.Duration
@@ -34,6 +34,7 @@ type MessageHandler struct {
 func NewMessageHandler(q queue.Queue, storage *storage.ChatHistoryStorage) (*MessageHandler, error) {
 	handler := &MessageHandler{
 		dingTalk:      bot.NewDingTalkClient(),
+		bark:          bot.NewBarkClient(),
 		messageQueue:  q,
 		maxAttempts:   config.AppConfig.Retry.MaxAttempts,
 		retryInterval: time.Duration(config.AppConfig.Retry.Interval) * time.Second,
@@ -127,11 +128,11 @@ func (h *MessageHandler) processQueueMessages() {
 			}).Info("收到新消息，准备发送到钉钉")
 
 			startTime := time.Now()
-			if err := h.sendToDingTalk(msg); err != nil {
+			if err := h.processMessage(msg); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"message_id": msg.ID,
 					"error":     err,
-				}).Error("发送消息到钉钉失败")
+				}).Error("处理消息失败")
 
 				// 更新尝试次数和最后尝试时间
 				msg.Attempts++
@@ -152,7 +153,7 @@ func (h *MessageHandler) processQueueMessages() {
 				logrus.WithFields(logrus.Fields{
 					"message_id": msg.ID,
 					"duration":  time.Since(startTime),
-				}).Info("消息发送成功")
+				}).Info("消息处理成功")
 				metrics.IncrementProcessedMessages()
 			}
 			metrics.AddMessageLatency(time.Since(startTime))
@@ -492,8 +493,8 @@ func (h *MessageHandler) processQueuedMessages() {
 
 		// 尝试发送消息
 		startTime := time.Now()
-		if err := h.sendToDingTalk(msg); err != nil {
-			logrus.Errorf("重试发送消息到钉钉失败: %v", err)
+		if err := h.processMessage(msg); err != nil {
+			logrus.Errorf("重试处理消息失败: %v", err)
 
 			// 更新尝试次数和最后尝试时间
 			msg.Attempts++
@@ -508,7 +509,7 @@ func (h *MessageHandler) processQueuedMessages() {
 			// 增加重试计数
 			metrics.IncrementRetryCount()
 		} else {
-			logrus.Infof("成功重试发送消息: %s (尝试次数: %d)", msg.ID, msg.Attempts)
+			logrus.Infof("成功重试处理消息: %s (尝试次数: %d)", msg.ID, msg.Attempts)
 			// 增加处理成功消息计数
 			metrics.IncrementProcessedMessages()
 		}
@@ -517,26 +518,53 @@ func (h *MessageHandler) processQueuedMessages() {
 	}
 }
 
-// 发送消息到钉钉
-func (h *MessageHandler) sendToDingTalk(msg *models.Message) error {
-	err := h.dingTalk.SendMessage(msg)
-
-	// 检查是否是网络错误
+// processMessage 处理单个消息
+func (h *MessageHandler) processMessage(msg *models.Message) error {
+	// 获取聊天信息
+	chat, err := h.bot.GetChat(tgbotapi.ChatInfoConfig{
+		ChatConfig: tgbotapi.ChatConfig{
+			ChatID: msg.ChatID,
+		},
+	})
 	if err != nil {
-		if _, ok := err.(net.Error); ok {
-			return fmt.Errorf("网络错误: %w", err)
-		}
+		return fmt.Errorf("获取聊天信息失败: %w", err)
+	}
 
-		if opErr, ok := err.(*net.OpError); ok {
-			return fmt.Errorf("网络操作错误: %w", opErr)
-		}
-
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return fmt.Errorf("网络超时: %w", err)
+	// 获取聊天名称
+	chatName := chat.Title
+	if chatName == "" {
+		if chat.FirstName != "" || chat.LastName != "" {
+			chatName = fmt.Sprintf("%s %s", chat.FirstName, chat.LastName)
+		} else {
+			chatName = fmt.Sprintf("Chat(%d)", chat.ID)
 		}
 	}
 
-	return err
+	// 发送到钉钉
+	if err := h.dingTalk.SendMessage(msg); err != nil {
+		logrus.Errorf("发送消息到钉钉失败: %v", err)
+	}
+
+	// 发送到 Bark
+	if err := h.bark.SendMessage(chatName, msg); err != nil {
+		logrus.Errorf("发送消息到 Bark 失败: %v", err)
+	}
+
+	// 保存聊天记录
+	history := &models.ChatHistory{
+		ID:        msg.ChatID, // 使用 ChatID 作为消息 ID
+		ChatID:    msg.ChatID,
+		Text:      msg.Content,
+		FromUser:  msg.From,
+		GroupName: msg.ChatTitle,
+		Timestamp: msg.CreatedAt,
+	}
+
+	if err := h.storage.SaveMessage(history); err != nil {
+		logrus.Errorf("保存聊天记录失败: %v", err)
+	}
+
+	return nil
 }
 
 // 添加 downloadAndUploadToS3 函数
