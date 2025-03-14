@@ -7,7 +7,7 @@ import (
 
 // Message 表示从 Telegram 转发到钉钉的消息
 type Message struct {
-	ID          string    `json:"id"`           // 唯一标识符
+	ID          int64     `json:"id"`           // 唯一标识符
 	Content     string    `json:"content"`      // 消息内容
 	From        string    `json:"from"`         // 发送者
 	ChatID      int64     `json:"chat_id"`      // 聊天ID
@@ -21,7 +21,7 @@ type Message struct {
 // NewMessage 创建一个新的消息
 func NewMessage(content, from string, chatID int64, chatTitle string) *Message {
 	return &Message{
-		ID:        generateID(),
+		ID:        time.Now().UnixNano(),  // 使用纳秒时间戳作为唯一标识符
 		Content:   content,
 		From:      from,
 		ChatID:    chatID,

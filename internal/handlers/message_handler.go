@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,7 @@ type MessageHandler struct {
 	bot             *tgbotapi.BotAPI
 	storage         *storage.ChatHistoryStorage
 	stopped         bool
+	harmony         *bot.HarmonyClient
 }
 
 // NewMessageHandler 创建一个新的消息处理器
@@ -42,6 +44,7 @@ func NewMessageHandler(q queue.Queue, storage *storage.ChatHistoryStorage) (*Mes
 		msgChan:       make(chan *models.Message, 100),
 		storage:       storage,
 		stopped:       false,
+		harmony:       bot.NewHarmonyClient(),
 	}
 
 	// 如果启用了指标收集，创建指标报告器
@@ -331,13 +334,13 @@ func (h *MessageHandler) processTelegramUpdates(updates tgbotapi.UpdatesChannel)
 
 			// 创建消息对象
 			msg := &models.Message{
-				ID:        fmt.Sprintf("%d", update.Message.MessageID),
+				ID:        int64(update.Message.MessageID),
 				Content:   content,
 				From:     sender,
 				ChatID:   update.Message.Chat.ID,
 				ChatTitle: groupName,
 				CreatedAt: time.Now(),
-				IsMarkdown: fileURL != "", // 添加标记表示是否为 markdown 格式
+				IsMarkdown: fileURL != "",
 			}
 
 			// 发送到消息通道
@@ -423,7 +426,7 @@ func (h *MessageHandler) forwardToDingTalk(message *tgbotapi.Message) error {
 
 	// 转换为钉钉消息格式
 	msg := &models.Message{
-		ID:      fmt.Sprintf("%d", message.MessageID),
+		ID:      int64(message.MessageID),
 		ChatID:  message.Chat.ID,
 		From:    sender,
 		Content: content,
@@ -521,47 +524,103 @@ func (h *MessageHandler) processQueuedMessages() {
 // processMessage 处理单个消息
 func (h *MessageHandler) processMessage(msg *models.Message) error {
 	// 获取聊天信息
-	chat, err := h.bot.GetChat(tgbotapi.ChatInfoConfig{
-		ChatConfig: tgbotapi.ChatConfig{
-			ChatID: msg.ChatID,
-		},
-	})
+	chat, err := h.bot.GetChat(tgbotapi.ChatInfoConfig{ChatConfig: tgbotapi.ChatConfig{ChatID: msg.ChatID}})
 	if err != nil {
-		return fmt.Errorf("获取聊天信息失败: %w", err)
+		logrus.Errorf("获取聊天信息失败: %v", err)
+		return err
 	}
 
-	// 获取聊天名称
-	chatName := chat.Title
-	if chatName == "" {
-		if chat.FirstName != "" || chat.LastName != "" {
-			chatName = fmt.Sprintf("%s %s", chat.FirstName, chat.LastName)
-		} else {
-			chatName = fmt.Sprintf("Chat(%d)", chat.ID)
-		}
-	}
+	// 更新消息的聊天标题
+	msg.ChatTitle = chat.Title
 
 	// 发送到钉钉
 	if err := h.dingTalk.SendMessage(msg); err != nil {
-		logrus.Errorf("发送消息到钉钉失败: %v", err)
+		logrus.Errorf("发送到钉钉失败: %v", err)
 	}
 
 	// 发送到 Bark
-	if err := h.bark.SendMessage(chatName, msg); err != nil {
-		logrus.Errorf("发送消息到 Bark 失败: %v", err)
+	if err := h.bark.SendMessage(chat.Title, msg); err != nil {
+		logrus.Errorf("发送到 Bark 失败: %v", err)
+	}
+
+	// 发送到 HarmonyOS_MeoW
+	var harmonyContent string
+	
+	// 检查是否为图片消息
+	isImageMessage := false
+	if msg.IsMarkdown && config.AppConfig.S3 != nil {
+		lines := strings.Split(msg.Content, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "https://s3.cloudhkcdn.com/") {
+				// 提取实际的 S3 URL
+				start := strings.Index(line, "https://s3.cloudhkcdn.com/")
+				if start != -1 {
+					end := strings.Index(line[start:], ")")
+					if end != -1 {
+						s3URL := line[start : start+end]
+						harmonyContent = fmt.Sprintf("图片通知?url=%s", s3URL)
+						isImageMessage = true
+						
+						// 打印调试信息
+						logrus.WithFields(logrus.Fields{
+							"message_type": "image",
+							"extracted_url": s3URL,
+							"harmony_content": harmonyContent,
+						}).Debug("构建 HarmonyOS_MeoW 图片通知内容")
+						break
+					}
+				}
+			}
+		}
+	}
+	
+	if !isImageMessage {
+		// 如果是文本消息，直接使用内容
+		content := msg.Content
+		if msg.IsMarkdown && strings.HasPrefix(content, "###") {
+			// 移除 markdown 标题和格式
+			lines := strings.Split(content, "\n")
+			if len(lines) > 1 {
+				// 提取实际的消息内容（去掉标题行）
+				content = strings.Join(lines[1:], "\n")
+			}
+		}
+		// 提取纯文本内容（移除 markdown 格式）
+		content = strings.TrimPrefix(content, "【")
+		content = strings.TrimSuffix(content, "】")
+		if idx := strings.Index(content, "】["); idx != -1 {
+			content = content[idx+2:]
+		}
+		if idx := strings.Index(content, "]\n"); idx != -1 {
+			content = content[idx+2:]
+		}
+		harmonyContent = content
+		
+		// 打印调试信息
+		logrus.WithFields(logrus.Fields{
+			"message_type": "text",
+			"original_content": msg.Content,
+			"harmony_content": harmonyContent,
+		}).Debug("构建 HarmonyOS_MeoW 文本通知内容")
+	}
+	
+	if err := h.harmony.SendMessage(chat.Title, harmonyContent, ""); err != nil {
+		logrus.Errorf("发送到 HarmonyOS_MeoW 失败: %v", err)
 	}
 
 	// 保存聊天记录
 	history := &models.ChatHistory{
-		ID:        msg.ChatID, // 使用 ChatID 作为消息 ID
+		ID:        msg.ID,
 		ChatID:    msg.ChatID,
 		Text:      msg.Content,
 		FromUser:  msg.From,
-		GroupName: msg.ChatTitle,
+		GroupName: chat.Title,
 		Timestamp: msg.CreatedAt,
 	}
 
 	if err := h.storage.SaveMessage(history); err != nil {
 		logrus.Errorf("保存聊天记录失败: %v", err)
+		return err
 	}
 
 	return nil

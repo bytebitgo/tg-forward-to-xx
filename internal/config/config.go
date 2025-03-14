@@ -44,6 +44,7 @@ type Config struct {
 	Metrics  *MetricsConfig  `mapstructure:"metrics"`
 	S3       *S3Config       `mapstructure:"s3"`
 	Bark     *BarkConfig     `mapstructure:"bark"`
+	Harmony  *HarmonyConfig  `mapstructure:"harmony"`  // HarmonyOS_MeoW 配置
 }
 
 // TelegramConfig Telegram 配置
@@ -127,6 +128,13 @@ type BarkConfig struct {
 	Keys    []string `mapstructure:"keys"`       // Bark 设备密钥列表
 	Sound   string   `mapstructure:"sound"`      // 通知声音
 	Icon    string   `mapstructure:"icon"`       // 通知图标
+}
+
+// HarmonyConfig HarmonyOS_MeoW 通知配置
+type HarmonyConfig struct {
+	Enabled  bool     `mapstructure:"enabled"`   // 是否启用
+	UserIDs  []string `mapstructure:"user_ids"`  // 用户ID列表
+	BaseURL  string   `mapstructure:"base_url"`  // API基础URL，默认为 https://api.chuckfang.com
 }
 
 // AppConfig 全局配置实例
