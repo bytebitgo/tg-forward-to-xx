@@ -23,15 +23,75 @@
             background: var(--bg-gradient);
         }
 
+        .feature-card {
+            border: none;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
         .feature-icon {
-            font-size: 2.5rem;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-            transition: transform 0.3s ease;
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
         }
 
         .feature-card:hover .feature-icon {
-            transform: translateY(-5px);
+            transform: scale(1.1);
+        }
+
+        .feature-icon.message {
+            color: #1890ff;
+        }
+
+        .feature-icon.queue {
+            color: #3370ff;
+        }
+
+        .feature-icon.config {
+            color: #f5222d;
+        }
+
+        .feature-icon.monitor {
+            color: #00c875;
+        }
+
+        .feature-icon.security {
+            color: #722ed1;
+        }
+
+        .feature-icon.plugin {
+            color: #eb2f96;
+        }
+
+        .feature-card:hover .feature-icon.message {
+            color: #40a9ff;
+        }
+
+        .feature-card:hover .feature-icon.queue {
+            color: #597ef7;
+        }
+
+        .feature-card:hover .feature-icon.config {
+            color: #ff4d4f;
+        }
+
+        .feature-card:hover .feature-icon.monitor {
+            color: #36e78d;
+        }
+
+        .feature-card:hover .feature-icon.security {
+            color: #9254de;
+        }
+
+        .feature-card:hover .feature-icon.plugin {
+            color: #f759ab;
         }
 
         .channel-card {
@@ -283,27 +343,54 @@
                     <div class="col-md-4">
                         <div class="card feature-card h-100 p-4">
                             <div class="text-center">
-                                <i class="bi bi-chat-dots-fill feature-icon"></i>
+                                <i class="bi bi-chat-dots-fill feature-icon message"></i>
                                 <h3 class="h4 mb-3">多渠道支持</h3>
-                                <p class="text-muted">支持钉钉、飞书、Bark、HarmonyOS 等多个通知渠道，轻松转发消息</p>
+                                <p class="text-muted">支持钉钉、飞书、Bark、HarmonyOS 等多个通知渠道，轻松转发消息到不同平台</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card feature-card h-100 p-4">
                             <div class="text-center">
-                                <i class="bi bi-database-fill feature-icon"></i>
+                                <i class="bi bi-database-fill feature-icon queue"></i>
                                 <h3 class="h4 mb-3">消息持久化</h3>
-                                <p class="text-muted">支持内存队列和 LevelDB 持久化，确保消息不丢失</p>
+                                <p class="text-muted">支持内存队列和 LevelDB 持久化存储，确保消息不丢失，支持断点续传</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card feature-card h-100 p-4">
                             <div class="text-center">
-                                <i class="bi bi-gear-fill feature-icon"></i>
+                                <i class="bi bi-gear-fill feature-icon config"></i>
                                 <h3 class="h4 mb-3">灵活配置</h3>
-                                <p class="text-muted">提供丰富的配置选项，支持自定义通知规则和消息格式</p>
+                                <p class="text-muted">提供丰富的配置选项，支持自定义通知规则、消息格式和过滤条件</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100 p-4">
+                            <div class="text-center">
+                                <i class="bi bi-graph-up feature-icon monitor"></i>
+                                <h3 class="h4 mb-3">监控指标</h3>
+                                <p class="text-muted">集成 Prometheus 监控，提供消息处理延迟、队列长度等关键指标的实时监控</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100 p-4">
+                            <div class="text-center">
+                                <i class="bi bi-shield-lock-fill feature-icon security"></i>
+                                <h3 class="h4 mb-3">安全可靠</h3>
+                                <p class="text-muted">支持消息签名验证、自定义加密、访问控制，确保消息传输安全</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card feature-card h-100 p-4">
+                            <div class="text-center">
+                                <i class="bi bi-puzzle-fill feature-icon plugin"></i>
+                                <h3 class="h4 mb-3">插件扩展</h3>
+                                <p class="text-muted">提供插件系统，支持自定义消息处理逻辑，轻松扩展新的通知渠道</p>
                             </div>
                         </div>
                     </div>
