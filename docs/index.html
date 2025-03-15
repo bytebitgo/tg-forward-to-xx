@@ -59,6 +59,22 @@
             color: var(--accent-color);
         }
 
+        .channel-card:hover .channel-icon.dingtalk {
+            color: #1890ff;
+        }
+
+        .channel-card:hover .channel-icon.feishu {
+            color: #3370ff;
+        }
+
+        .channel-card:hover .channel-icon.bark {
+            color: #f5222d;
+        }
+
+        .channel-card:hover .channel-icon.harmony {
+            color: #00c875;
+        }
+
         .navbar {
             backdrop-filter: blur(10px);
             background: rgba(13, 110, 253, 0.95) !important;
@@ -145,9 +161,16 @@
 
         .architecture-diagram {
             background: white;
-            padding: 2rem;
+            padding: 3rem;
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .architecture-diagram pre {
+            background: none;
+            padding: 0;
         }
 
         .download-section {
@@ -271,7 +294,7 @@
                     <div class="col-md-3">
                         <div class="card channel-card h-100">
                             <div class="card-body text-center p-4">
-                                <i class="bi bi-chat-square-text-fill channel-icon"></i>
+                                <i class="bi bi-chat-square-text-fill channel-icon dingtalk"></i>
                                 <h4 class="mb-3">钉钉机器人</h4>
                                 <p class="text-muted mb-0">支持文本、Markdown、图片等多种消息类型</p>
                             </div>
@@ -280,7 +303,7 @@
                     <div class="col-md-3">
                         <div class="card channel-card h-100">
                             <div class="card-body text-center p-4">
-                                <i class="bi bi-chat-square-dots-fill channel-icon"></i>
+                                <i class="bi bi-chat-square-dots-fill channel-icon feishu"></i>
                                 <h4 class="mb-3">飞书机器人</h4>
                                 <p class="text-muted mb-0">支持富文本、图片、@功能等高级特性</p>
                             </div>
@@ -289,7 +312,7 @@
                     <div class="col-md-3">
                         <div class="card channel-card h-100">
                             <div class="card-body text-center p-4">
-                                <i class="bi bi-phone-fill channel-icon"></i>
+                                <i class="bi bi-phone-fill channel-icon bark"></i>
                                 <h4 class="mb-3">Bark</h4>
                                 <p class="text-muted mb-0">iOS 设备推送通知，支持自定义声音和图标</p>
                             </div>
@@ -298,7 +321,7 @@
                     <div class="col-md-3">
                         <div class="card channel-card h-100">
                             <div class="card-body text-center p-4">
-                                <i class="bi bi-phone-vibrate-fill channel-icon"></i>
+                                <i class="bi bi-phone-vibrate-fill channel-icon harmony"></i>
                                 <h4 class="mb-3">HarmonyOS</h4>
                                 <p class="text-muted mb-0">华为设备消息推送，支持多用户配置</p>
                             </div>
@@ -423,7 +446,7 @@ graph TB
                         </div>
 
                         <div class="text-center mt-4">
-                            <a href="https://github.com/user/tg-forward-to-xx/blob/master/CHANGELOG.md" class="btn btn-outline-primary">
+                            <a href="https://github.com/bytebitgo/tg-forward-to-xx/blob/master/CHANGELOG.md" class="btn btn-outline-primary">
                                 <i class="bi bi-clock-history me-2"></i>查看完整更新记录
                             </a>
                         </div>
@@ -524,7 +547,8 @@ vim config/config.yaml</code></pre>
                 tertiaryColor: '#ffffff'
             },
             flowchart: {
-                curve: 'basis'
+                curve: 'basis',
+                useMaxWidth: false
             }
         });
     </script>
