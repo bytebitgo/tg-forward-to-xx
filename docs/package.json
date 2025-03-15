@@ -1,0 +1,11 @@
+{
+  "name": "tg-forward-docs",
+  "version": "1.0.0",
+  "description": "TG Forward 文档站点",
+  "scripts": {
+    "generate": "node changelog-generator.js"
+  },
+  "dependencies": {
+    "marked": "^11.1.0"
+  }
+} 

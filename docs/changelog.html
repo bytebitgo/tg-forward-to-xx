@@ -1,0 +1,59 @@
+
+        <div class="changelog-container prose prose-lg max-w-none">
+            <h1 class="text-4xl font-bold text-gray-900 mb-8">更新日志</h1>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-2-0-3-2025-03-15">
+                        [2.0.3] - 2025-03-15
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">改进</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">更新了所有版本的发布日期，保持版本历史的连续性和一致性</li><li class="text-base">优化了版本号管理，确保版本号递增的合理性</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-2-0-2-2025-03-14">
+                        [2.0.2] - 2025-03-14
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">新增</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">为钉钉通知添加开关控制功能<ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">在配置文件中新增 <code>enabled</code> 字段，用于控制是否发送钉钉消息</li><li class="text-base">优化了钉钉消息发送的错误日志</li></ul></li></ul><h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">修复</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">修复了编译错误：移除了未使用的 context 包导入</li><li class="text-base">优化了代码导入结构，删除了不必要的依赖</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-2-0-1-2025-03-13">
+                        [2.0.1] - 2025-03-13
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">新增功能</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">增加 HarmonyOS_MeoW 通知支持<ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">支持多用户 ID 配置</li><li class="text-base">支持自定义 API 基础 URL</li><li class="text-base">支持图片消息处理</li><li class="text-base">支持消息跳转链接</li></ul></li><li class="text-base">优化图片处理逻辑<ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">支持 S3 存储图片</li><li class="text-base">自动选择最佳图片质量</li></ul></li></ul><h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">优化</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">改进消息处理流程，支持多通知渠道</li><li class="text-base">优化配置文件结构，增加 HarmonyOS_MeoW 配置部分</li><li class="text-base">改进错误处理和日志记录</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-2-0-0-2025-03-12">
+                        [2.0.0] - 2025-03-12
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">新增功能</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">增加 iOS Bark 通知支持<ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">支持多设备推送</li><li class="text-base">自定义通知声音</li><li class="text-base">自定义通知图标</li><li class="text-base">按聊天分组通知</li></ul></li><li class="text-base">增加聊天记录存储功能<ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">保存历史消息</li><li class="text-base">支持按时间查询</li><li class="text-base">支持按用户查询</li></ul></li><li class="text-base">增加 RPM 和 DEB 包安装支持</li><li class="text-base">增加 systemd 和 SysV init 服务管理</li><li class="text-base">增加队列指标收集，便于对接 Prometheus 监控</li><li class="text-base">增加 HTTP 接口暴露队列指标数据</li></ul><h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">优化</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">重构消息处理流程，支持多目标转发</li><li class="text-base">优化配置文件结构，增加更多配置选项</li><li class="text-base">优化错误处理和日志记录</li><li class="text-base">优化文档和安装说明</li><li class="text-base">优化代码结构，增加模块化设计</li></ul><h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">修复</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">修复聊天记录存储初始化失败问题</li><li class="text-base">修复配置文件路径问题</li><li class="text-base">修复消息队列持久化问题</li><li class="text-base">修复网络超时处理问题</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-1-0-4-2025-03-11">
+                        [1.0.4] - 2025-03-11
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">改进</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">添加 HTTP 服务暴露队列指标数据</li><li class="text-base">提供 <code>/metrics</code> 接口返回 JSON 格式指标</li><li class="text-base">提供 <code>/health</code> 接口用于健康检查</li><li class="text-base">支持配置 HTTP 服务端口和路径</li><li class="text-base">新增 HTTPS 支持和 HTTP 接口认证机制</li><li class="text-base">新增更多队列监控指标</li><li class="text-base">改进配置文件管理</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-1-0-3-2025-03-11">
+                        [1.0.3] - 2025-03-11
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">改进</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">添加队列指标收集功能</li><li class="text-base">支持每分钟统计队列状态</li><li class="text-base">支持将指标输出到 JSON 文件</li><li class="text-base">为对接 Prometheus 监控做准备</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-1-0-2-2025-03-10">
+                        [1.0.2] - 2025-03-10
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">改进</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">添加 systemd 服务支持</li><li class="text-base">添加 SysV init 服务脚本</li><li class="text-base">添加 RPM 和 DEB 打包支持</li><li class="text-base">优化 Linux 系统部署流程</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-1-0-1-2025-03-10">
+                        [1.0.1] - 2025-03-10
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">改进</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">优化错误处理逻辑</li><li class="text-base">改进日志输出格式</li><li class="text-base">增强网络超时检测</li></ul>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4" id="-1-0-0-2025-03-10">
+                        [1.0.0] - 2025-03-10
+                    </h2>
+                </div>
+            <h3 class="text-xl font-medium text-gray-800 mt-6 mb-4">新增</h3><ul class="list-disc list-inside space-y-2 text-gray-600 mb-6 ml-4"><li class="text-base">初始版本发布</li><li class="text-base">支持监听 Telegram 群聊消息</li><li class="text-base">支持转发消息到钉钉机器人</li><li class="text-base">支持处理网络超时和错误情况</li><li class="text-base">支持消息重试机制</li><li class="text-base">支持内存队列和 LevelDB 持久化队列</li><li class="text-base">支持程序重启后恢复失败消息</li></ul>
+        </div>
+    
