@@ -533,9 +533,11 @@ func (h *MessageHandler) processMessage(msg *models.Message) error {
 	// 更新消息的聊天标题
 	msg.ChatTitle = chat.Title
 
-	// 发送到钉钉
-	if err := h.dingTalk.SendMessage(msg); err != nil {
-		logrus.Errorf("发送到钉钉失败: %v", err)
+	// 发送钉钉消息
+	if h.dingTalk != nil && config.AppConfig.DingTalk.Enabled {
+		if err := h.dingTalk.SendMessage(msg); err != nil {
+			logrus.Errorf("发送钉钉消息失败: %v", err)
+		}
 	}
 
 	// 发送到 Bark

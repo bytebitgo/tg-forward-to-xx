@@ -21,7 +21,7 @@ import (
 
 var (
 	// Version 程序版本号
-	Version = "1.0.32"
+	Version = "1.0.34"
 	configPath  string
 	showVersion bool
 	logLevel    string
