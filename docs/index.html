@@ -6,6 +6,7 @@
     <title>TG-Forward - Telegram 消息转发工具</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         :root {
             --primary-color: #0d6efd;
@@ -101,6 +102,68 @@
             background: var(--bg-gradient);
             opacity: 0.5;
             z-index: -1;
+        }
+
+        .changelog-card {
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .changelog-version {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .changelog-date {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+        }
+
+        .changelog-type {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .changelog-type.new {
+            background-color: #ddf3e4;
+            color: #28a745;
+        }
+
+        .changelog-type.fix {
+            background-color: #fff3cd;
+            color: #ffc107;
+        }
+
+        .changelog-type.optimize {
+            background-color: #cfe2ff;
+            color: #0d6efd;
+        }
+
+        .architecture-diagram {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .download-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .download-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .download-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -245,6 +308,130 @@
             </div>
         </section>
 
+        <!-- 架构设计 -->
+        <section id="architecture" class="py-5">
+            <div class="container py-4">
+                <h2 class="text-center mb-5 fw-bold">
+                    <i class="bi bi-diagram-3 me-2"></i>架构设计
+                </h2>
+                <div class="architecture-diagram">
+                    <pre class="mermaid">
+graph TB
+    TG[Telegram Groups] --> Handler[Message Handler]
+    Handler --> Queue[Message Queue]
+    Queue --> Processor[Message Processor]
+    Processor --> DD[DingTalk]
+    Processor --> FS[Feishu]
+    Processor --> Bark[Bark]
+    Processor --> HM[HarmonyOS]
+    Queue -.-> Storage[LevelDB Storage]
+    Processor -.-> Metrics[Prometheus Metrics]
+
+    classDef primary fill:#0d6efd,stroke:#0d6efd,color:white;
+    classDef secondary fill:#6c757d,stroke:#6c757d,color:white;
+    classDef success fill:#28a745,stroke:#28a745,color:white;
+    
+    class TG,Handler primary;
+    class Queue,Processor,Storage secondary;
+    class DD,FS,Bark,HM,Metrics success;
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- 下载部分 -->
+        <section id="download" class="download-section py-5">
+            <div class="container py-4">
+                <h2 class="text-center mb-5 fw-bold">
+                    <i class="bi bi-cloud-download me-2"></i>下载
+                </h2>
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card download-card text-center">
+                            <div class="card-body p-5">
+                                <i class="bi bi-download download-icon"></i>
+                                <h3 class="mb-4">最新版本</h3>
+                                <p class="mb-4">当前版本：v2.0.11</p>
+                                <a href="https://github.com/user/tg-forward-to-xx/releases/latest" class="btn btn-light btn-lg">
+                                    <i class="bi bi-github me-2"></i>从 GitHub 下载
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 更新日志 -->
+        <section id="changelog" class="py-5">
+            <div class="container py-4">
+                <h2 class="text-center mb-5 fw-bold">
+                    <i class="bi bi-clock-history me-2"></i>更新日志
+                </h2>
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <!-- 2.0.11 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.11</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type optimize">优化 ⚡️</span>
+                                <ul class="mb-0">
+                                    <li>优化飞书机器人消息格式 📝</li>
+                                    <li>使用群组名或用户名作为消息标题 🏷️</li>
+                                    <li>优化图片和文件消息的显示文本 🖼️</li>
+                                    <li>完善消息结构以符合飞书API规范 ✨</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.10 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.10</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type fix">修复 🔧</span>
+                                <ul class="mb-0">
+                                    <li>修复飞书机器人消息格式问题 🛠️</li>
+                                    <li>更新为正确的富文本消息格式 📄</li>
+                                    <li>修复文件和图片消息的显示方式 🖼️</li>
+                                    <li>优化 @ 功能的实现 👥</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.4 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.4</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type new">新增 ✨</span>
+                                <ul class="mb-0">
+                                    <li>添加飞书机器人支持 🚀</li>
+                                    <li>支持飞书消息签名验证 🔐</li>
+                                    <li>支持飞书富文本消息格式 📝</li>
+                                    <li>支持飞书 @ 功能 👥</li>
+                                    <li>支持文件消息和图片消息处理 📎</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <a href="https://github.com/user/tg-forward-to-xx/blob/master/CHANGELOG.md" class="btn btn-outline-primary">
+                                <i class="bi bi-clock-history me-2"></i>查看完整更新记录
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- 文档部分 -->
         <section id="docs" class="py-5">
             <div class="container py-4">
@@ -302,13 +489,6 @@ vim config/config.yaml</code></pre>
                                         <i class="bi bi-journal-text me-2"></i>日志级别和输出位置
                                     </li>
                                 </ul>
-
-                                <h3 class="mb-4 mt-5">
-                                    <i class="bi bi-book-half me-2"></i>更多文档
-                                </h3>
-                                <p>访问我们的 <a href="https://github.com/user/tg-forward-to-xx/wiki" target="_blank" class="text-decoration-none">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i>Wiki
-                                </a> 获取更详细的文档。</p>
                             </div>
                         </div>
                     </div>
@@ -330,5 +510,23 @@ vim config/config.yaml</code></pre>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#0d6efd',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#0d6efd',
+                lineColor: '#6c757d',
+                secondaryColor: '#6c757d',
+                tertiaryColor: '#ffffff'
+            },
+            flowchart: {
+                curve: 'basis'
+            }
+        });
+    </script>
 </body>
 </html> 
