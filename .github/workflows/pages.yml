@@ -9,9 +9,9 @@ on:
       - 'docs/**'
       - '.github/workflows/pages.yml'
 
-# 添加权限配置
+# 设置 GITHUB_TOKEN 的权限
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -21,44 +21,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 构建工作流程
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "20"
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
       - name: Install dependencies
         run: |
           cd docs
-          npm init -y
-          npm install marked
+          npm ci || npm install
 
       - name: Generate Changelog HTML
         run: |
           cd docs
           node changelog-generator.js
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v2
-
-      # 先上传构建产物
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: github-pages
-          path: docs
-          if-no-files-found: error
-
-      # 然后上传 Pages 构建产物
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v1
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
+  # 部署工作流程
   deploy:
     environment:
       name: github-pages
@@ -68,4 +63,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1 
+        uses: actions/deploy-pages@v4 
