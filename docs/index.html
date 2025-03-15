@@ -360,26 +360,74 @@
                     <i class="bi bi-diagram-3 me-2"></i>架构设计
                 </h2>
                 <div class="architecture-diagram">
-                    <pre class="mermaid">
-graph TB
-    TG[Telegram Groups] --> Handler[Message Handler]
-    Handler --> Queue[Message Queue]
-    Queue --> Processor[Message Processor]
-    Processor --> DD[DingTalk]
-    Processor --> FS[Feishu]
-    Processor --> Bark[Bark]
-    Processor --> HM[HarmonyOS]
-    Queue -.-> Storage[LevelDB Storage]
-    Processor -.-> Metrics[Prometheus Metrics]
-
-    classDef primary fill:#0d6efd,stroke:#0d6efd,color:white;
-    classDef secondary fill:#6c757d,stroke:#6c757d,color:white;
-    classDef success fill:#28a745,stroke:#28a745,color:white;
-    
-    class TG,Handler primary;
-    class Queue,Processor,Storage secondary;
-    class DD,FS,Bark,HM,Metrics success;
-                    </pre>
+                    <svg width="100%" viewBox="0 0 800 500" style="max-width: 1200px; margin: 0 auto;">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#6c757d"/>
+                            </marker>
+                            <marker id="dashedArrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#8c959d"/>
+                            </marker>
+                        </defs>
+                        <!-- Primary Nodes -->
+                        <g>
+                            <rect x="50" y="100" width="160" height="60" rx="8" fill="#0d6efd"/>
+                            <text x="130" y="135" fill="white" text-anchor="middle" font-size="14">Telegram Groups</text>
+                            
+                            <rect x="270" y="100" width="160" height="60" rx="8" fill="#0d6efd"/>
+                            <text x="350" y="135" fill="white" text-anchor="middle" font-size="14">Message Handler</text>
+                        </g>
+                        
+                        <!-- Secondary Nodes -->
+                        <g>
+                            <rect x="270" y="220" width="160" height="60" rx="8" fill="#6c757d"/>
+                            <text x="350" y="255" fill="white" text-anchor="middle" font-size="14">Message Queue</text>
+                            
+                            <rect x="500" y="220" width="160" height="60" rx="8" fill="#6c757d"/>
+                            <text x="580" y="255" fill="white" text-anchor="middle" font-size="14">Message Processor</text>
+                        </g>
+                        
+                        <!-- Success Nodes -->
+                        <g>
+                            <rect x="500" y="340" width="120" height="50" rx="8" fill="#28a745"/>
+                            <text x="560" y="370" fill="white" text-anchor="middle" font-size="14">DingTalk</text>
+                            
+                            <rect x="640" y="340" width="120" height="50" rx="8" fill="#28a745"/>
+                            <text x="700" y="370" fill="white" text-anchor="middle" font-size="14">Feishu</text>
+                            
+                            <rect x="500" y="410" width="120" height="50" rx="8" fill="#28a745"/>
+                            <text x="560" y="440" fill="white" text-anchor="middle" font-size="14">Bark</text>
+                            
+                            <rect x="640" y="410" width="120" height="50" rx="8" fill="#28a745"/>
+                            <text x="700" y="440" fill="white" text-anchor="middle" font-size="14">HarmonyOS</text>
+                        </g>
+                        
+                        <!-- Storage and Metrics -->
+                        <g>
+                            <rect x="50" y="220" width="160" height="60" rx="8" fill="#6c757d" fill-opacity="0.7"/>
+                            <text x="130" y="255" fill="white" text-anchor="middle" font-size="14">LevelDB Storage</text>
+                            
+                            <rect x="700" y="220" width="160" height="60" rx="8" fill="#28a745" fill-opacity="0.7"/>
+                            <text x="780" y="255" fill="white" text-anchor="middle" font-size="14">Prometheus Metrics</text>
+                        </g>
+                        
+                        <!-- Solid Arrows -->
+                        <g stroke="#6c757d" stroke-width="2" marker-end="url(#arrowhead)">
+                            <line x1="210" y1="130" x2="270" y2="130"/>
+                            <line x1="350" y1="160" x2="350" y2="220"/>
+                            <line x1="430" y1="250" x2="500" y2="250"/>
+                            <line x1="580" y1="280" x2="580" y2="340"/>
+                            <line x1="580" y1="280" x2="700" y2="340"/>
+                            <line x1="580" y1="280" x2="580" y2="410"/>
+                            <line x1="580" y1="280" x2="700" y2="410"/>
+                        </g>
+                        
+                        <!-- Dashed Arrows -->
+                        <g stroke="#8c959d" stroke-width="2" stroke-dasharray="4" marker-end="url(#dashedArrowhead)">
+                            <line x1="270" y1="250" x2="210" y2="250"/>
+                            <line x1="660" y1="250" x2="700" y2="250"/>
+                        </g>
+                    </svg>
                 </div>
             </div>
         </section>
@@ -537,6 +585,131 @@ graph TB
                                     <li>支持飞书富文本消息格式 📝</li>
                                     <li>支持飞书 @ 功能 👥</li>
                                     <li>支持文件消息和图片消息处理 📎</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.3 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.3</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type optimize">优化 ⚡️</span>
+                                <ul class="mb-0">
+                                    <li>优化消息队列处理机制 ⚡️</li>
+                                    <li>提升消息处理性能 🚀</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.2 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.2</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type fix">修复 🔧</span>
+                                <ul class="mb-0">
+                                    <li>修复内存泄漏问题 🛠️</li>
+                                    <li>优化资源使用 ⚡️</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.1 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.1</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type fix">修复 🔧</span>
+                                <ul class="mb-0">
+                                    <li>修复配置加载问题 ⚙️</li>
+                                    <li>优化错误处理 🛠️</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2.0.0 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v2.0.0</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type new">新版本 🎉</span>
+                                <ul class="mb-0">
+                                    <li>重构整个项目架构 🏗️</li>
+                                    <li>添加消息队列支持 📨</li>
+                                    <li>支持 LevelDB 持久化 💾</li>
+                                    <li>添加 Prometheus 指标收集 📊</li>
+                                    <li>优化配置管理 ⚙️</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 1.2.0 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v1.2.0</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type new">新增 ✨</span>
+                                <ul class="mb-0">
+                                    <li>添加 HarmonyOS 推送支持 📱</li>
+                                    <li>支持多用户配置 👥</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 1.1.0 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v1.1.0</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type new">新增 ✨</span>
+                                <ul class="mb-0">
+                                    <li>添加 Bark 推送支持 📱</li>
+                                    <li>支持自定义通知声音 🔔</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 1.0.1 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v1.0.1</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type fix">修复 🔧</span>
+                                <ul class="mb-0">
+                                    <li>修复钉钉消息发送问题 🛠️</li>
+                                    <li>优化错误处理 ⚙️</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 1.0.0 -->
+                        <div class="card changelog-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="changelog-version">v1.0.0</span>
+                                    <span class="changelog-date">2025-03-15</span>
+                                </div>
+                                <span class="changelog-type new">首次发布 🎉</span>
+                                <ul class="mb-0">
+                                    <li>支持 Telegram 消息监听 📨</li>
+                                    <li>支持钉钉机器人转发 🤖</li>
+                                    <li>支持基本消息类型 📝</li>
+                                    <li>支持简单的配置管理 ⚙️</li>
                                 </ul>
                             </div>
                         </div>
