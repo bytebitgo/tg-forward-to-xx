@@ -21,12 +21,13 @@ import (
 
 var (
 	// Version 程序版本号
-	Version = "2.0.3"
+	Version = "2.0.4"
 	configPath  string
 	showVersion bool
 	logLevel    string
 	metricsPort int
 	httpPort    int
+	configFile  string
 )
 
 func init() {

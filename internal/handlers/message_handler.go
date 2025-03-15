@@ -13,6 +13,7 @@ import (
 	"github.com/user/tg-forward-to-xx/internal/models"
 	"github.com/user/tg-forward-to-xx/internal/queue"
 	"github.com/user/tg-forward-to-xx/internal/storage"
+	"github.com/user/tg-forward-to-xx/internal/notifier"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -20,6 +21,7 @@ import (
 type MessageHandler struct {
 	dingTalk        *bot.DingTalkClient
 	bark            *bot.BarkClient
+	feishu          *notifier.FeishuNotifier
 	messageQueue    queue.Queue
 	maxAttempts     int
 	retryInterval   time.Duration
@@ -37,6 +39,7 @@ func NewMessageHandler(q queue.Queue, storage *storage.ChatHistoryStorage) (*Mes
 	handler := &MessageHandler{
 		dingTalk:      bot.NewDingTalkClient(),
 		bark:          bot.NewBarkClient(),
+		feishu:        notifier.NewFeishuNotifier(config.AppConfig.Feishu),
 		messageQueue:  q,
 		maxAttempts:   config.AppConfig.Retry.MaxAttempts,
 		retryInterval: time.Duration(config.AppConfig.Retry.Interval) * time.Second,
@@ -537,6 +540,25 @@ func (h *MessageHandler) processMessage(msg *models.Message) error {
 	if h.dingTalk != nil && config.AppConfig.DingTalk.Enabled {
 		if err := h.dingTalk.SendMessage(msg); err != nil {
 			logrus.Errorf("发送钉钉消息失败: %v", err)
+		}
+	}
+
+	// 发送飞书消息
+	if h.feishu != nil && config.AppConfig.Feishu.Enabled {
+		isFile := msg.IsMarkdown
+		fileURL := ""
+		if isFile {
+			// 从消息内容中提取文件URL
+			lines := strings.Split(msg.Content, "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "http") {
+					fileURL = line
+					break
+				}
+			}
+		}
+		if err := h.feishu.Send(msg.ChatTitle, msg.Content, isFile, fileURL); err != nil {
+			logrus.Errorf("发送飞书消息失败: %v", err)
 		}
 	}
 

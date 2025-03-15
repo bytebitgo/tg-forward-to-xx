@@ -1,6 +1,6 @@
 %define debug_package %{nil}
 Name:           tg-forward
-Version:        1.0.4
+Version:        2.0.4
 Release:        1%{?dist}
 Summary:        Telegram 转发到钉钉服务
 
@@ -73,6 +73,12 @@ chown root:tgforward /etc/%{name}/config.yaml
 %dir %attr(750,tgforward,tgforward) /var/lib/%{name}/data
 
 %changelog
+* Thu Mar 21 2024 Developer <dev@example.com> - 2.0.4-1
+- 添加飞书机器人支持
+- 支持飞书消息签名验证
+- 支持飞书富文本消息格式
+- 支持飞书 @ 功能
+
 * Wed Aug 30 2023 Developer <dev@example.com> - 1.0.4-1
 - 添加 HTTP 服务暴露队列指标数据
 - 提供 /metrics 接口返回 JSON 格式指标

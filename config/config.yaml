@@ -10,6 +10,15 @@ dingtalk:
   is_at_all: false
   notify_verbose: true
 
+feishu:
+  enabled: true
+  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx3feb7"
+  secret: "BrDPBGZK2BDFHNjkxxxxxx"
+  enable_at: false
+  at_user_ids: ["ou_18eac8********17ad4f02e8bbbb"]
+  is_at_all: false
+  notify_verbose: true
+
 bark:
   enabled: true
   keys: ["YOUR_BARK_KEY1", "YOUR_BARK_KEY2"]
@@ -32,18 +41,18 @@ s3:
 
 queue:
   type: "leveldb"  # 可选: memory, leveldb
-  path: "/var/lib/tg-forward/queue"
+  path: "./data/queue"
 
 log:
   level: "info"
-  file_path: "/var/log/tg-forward/app.log"
+  file_path: "./data/logs/app.log"
   max_size: 100  # MB
   max_files: 10
 
 metrics:
   enabled: true
-  interval: 60
-  output_file: "/var/lib/tg-forward/metrics.json"
+  interval: 60  # 收集间隔（秒）
+  output_file: "./data/metrics.json"  # 指标输出文件路径
   http:
     enabled: true
     port: 9090
@@ -54,10 +63,5 @@ metrics:
 retry:
   max_attempts: 3  # 最大重试次数
   interval: 60  # 重试间隔（秒）
-
-metrics:
-  enabled: true  # 是否启用指标收集
-  port: 9090  # 收集间隔（秒）
-  output_file: "/var/log/tg-forward/metrics.json"  # 指标输出文件路径
 
 public_base_url: "YOUR_PUBLIC_URL"  # 可选：CDN 或公共访问 URL，例如：https://cdn.example.com 

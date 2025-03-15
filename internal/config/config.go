@@ -39,6 +39,7 @@ type Config struct {
 	Telegram *TelegramConfig `mapstructure:"telegram"`
 	Log      *LogConfig     `mapstructure:"log"`
 	DingTalk *DingTalkConfig `mapstructure:"dingtalk"`
+	Feishu   *FeishuConfig   `mapstructure:"feishu"`    // 添加飞书配置
 	Queue    *QueueConfig    `mapstructure:"queue"`
 	Retry    *RetryConfig    `mapstructure:"retry"`
 	Metrics  *MetricsConfig  `mapstructure:"metrics"`
@@ -68,6 +69,17 @@ type DingTalkConfig struct {
 	Secret        string   `mapstructure:"secret"`        // 签名密钥
 	EnableAt      bool     `mapstructure:"enable_at"`     // 是否启用 @ 功能
 	AtMobiles     []string `mapstructure:"at_mobiles"`    // 需要 @ 的手机号列表
+	IsAtAll       bool     `mapstructure:"is_at_all"`     // 是否 @ 所有人
+	NotifyVerbose bool     `mapstructure:"notify_verbose"`// 是否显示详细信息
+}
+
+// FeishuConfig 飞书机器人配置
+type FeishuConfig struct {
+	Enabled       bool     `mapstructure:"enabled"`       // 是否启用飞书通知
+	WebhookURL    string   `mapstructure:"webhook_url"`   // Webhook URL
+	Secret        string   `mapstructure:"secret"`        // 签名密钥
+	EnableAt      bool     `mapstructure:"enable_at"`     // 是否启用 @ 功能
+	AtUserIDs     []string `mapstructure:"at_user_ids"`   // 需要 @ 的用户ID列表
 	IsAtAll       bool     `mapstructure:"is_at_all"`     // 是否 @ 所有人
 	NotifyVerbose bool     `mapstructure:"notify_verbose"`// 是否显示详细信息
 }
