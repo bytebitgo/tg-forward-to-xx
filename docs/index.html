@@ -6,16 +6,34 @@
     <title>TG Forward - 多渠道消息转发工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
+        .prose pre {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .prose code {
+            color: #e83e8c;
+            font-size: 0.875em;
+        }
+        .mermaid {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
     <!-- 导航栏 -->
-    <nav class="bg-white shadow-sm">
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex">
@@ -24,13 +42,22 @@
                         <span class="text-xl font-bold text-gray-900">TG Forward</span>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="#overview" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            项目概览
+                        </a>
+                        <a href="#architecture" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            架构设计
+                        </a>
                         <a href="#features" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             功能特性
+                        </a>
+                        <a href="#config" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            配置说明
                         </a>
                         <a href="#changelog" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             更新日志
                         </a>
-                        <a href="https://github.com/your-username/tg-forward" target="_blank" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                        <a href="https://github.com/bytebitgo/tg-forward-to-xx" target="_blank" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             <i class="fab fa-github mr-1"></i> GitHub
                         </a>
                     </div>
@@ -41,7 +68,94 @@
 
     <!-- 主要内容 -->
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- 特性介绍 -->
+        <!-- 项目概览 -->
+        <section id="overview" class="py-12">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-8">
+                    项目概览
+                </h2>
+                <div class="prose prose-lg max-w-none">
+                    <p class="text-gray-600 mb-6">
+                        TG Forward 是一个功能强大的消息转发工具，专注于将 Telegram 群组消息实时转发到多个通知渠道。支持钉钉机器人、Bark、HarmonyOS_MeoW 等多种通知方式，让您不错过任何重要消息。
+                    </p>
+                    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">主要优势</h3>
+                        <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                                <span>支持多种通知渠道，灵活配置</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                                <span>消息持久化存储，防止丢失</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                                <span>完善的监控指标，支持 Prometheus</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                                <span>高性能消息队列，确保可靠性</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 架构设计 -->
+        <section id="architecture" class="py-12 bg-white">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-8">
+                    架构设计
+                </h2>
+                <div class="prose prose-lg max-w-none">
+                    <div class="mermaid text-center mb-8">
+                        graph TB
+            TG[Telegram Groups] --> Handler[Message Handler]
+            Handler --> Queue[Message Queue]
+            Queue --> Processor[Message Processor]
+            Processor --> DD[DingTalk]
+            Processor --> Bark[Bark]
+            Processor --> HM[HarmonyOS MeoW]
+            Queue -.-> Storage[LevelDB Storage]
+            Processor -.-> Metrics[Prometheus Metrics]
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">核心组件</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <div class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-md bg-blue-500 text-white">
+                                <i class="fas fa-envelope-open-text"></i>
+                            </div>
+                            <p class="ml-3">
+                                <span class="font-semibold">消息处理器：</span>
+                                负责接收和解析 Telegram 消息，支持文本、图片等多种消息类型。
+                            </p>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-md bg-green-500 text-white">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <p class="ml-3">
+                                <span class="font-semibold">消息队列：</span>
+                                使用 LevelDB 实现的持久化队列，确保消息可靠传递。
+                            </p>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-md bg-purple-500 text-white">
+                                <i class="fas fa-share-nodes"></i>
+                            </div>
+                            <p class="ml-3">
+                                <span class="font-semibold">通知适配器：</span>
+                                支持多种通知渠道，可以灵活扩展新的通知方式。
+                            </p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 功能特性 -->
         <section id="features" class="py-12">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-12">
@@ -49,7 +163,7 @@
                 </h2>
                 <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
                     <!-- 多渠道支持 -->
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-300">
                         <div class="px-4 py-5 sm:p-6">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
@@ -66,7 +180,7 @@
                     </div>
 
                     <!-- 消息存储 -->
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-300">
                         <div class="px-4 py-5 sm:p-6">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
@@ -83,7 +197,7 @@
                     </div>
 
                     <!-- 监控指标 -->
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-300">
                         <div class="px-4 py-5 sm:p-6">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
@@ -102,8 +216,81 @@
             </div>
         </section>
 
+        <!-- 配置说明 -->
+        <section id="config" class="py-12 bg-white">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-8">
+                    配置说明
+                </h2>
+                <div class="prose prose-lg max-w-none">
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">配置文件示例</h3>
+                        <pre><code class="language-yaml">telegram:
+  token: "your-bot-token"
+  chat_ids: [123456789]
+
+dingtalk:
+  enabled: true
+  webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=xxx"
+  secret: "your-secret"
+  enable_at: true
+  at_mobiles: ["1234567890"]
+
+bark:
+  server: "https://api.day.app"
+  device_key: "your-device-key"
+
+harmony:
+  base_url: "https://api.example.com"
+  user_ids: ["user1", "user2"]
+
+queue:
+  type: "leveldb"
+  path: "./data/queue"
+
+metrics:
+  enabled: true
+  port: 9090</code></pre>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mt-8 mb-4">配置项说明</h3>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h4 class="font-semibold text-lg mb-2">Telegram 配置</h4>
+                            <ul class="list-disc list-inside space-y-2 text-gray-600">
+                                <li><code>token</code>: 机器人的访问令牌</li>
+                                <li><code>chat_ids</code>: 需要监听的群组 ID 列表</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h4 class="font-semibold text-lg mb-2">钉钉配置</h4>
+                            <ul class="list-disc list-inside space-y-2 text-gray-600">
+                                <li><code>enabled</code>: 是否启用钉钉通知</li>
+                                <li><code>webhook_url</code>: 钉钉机器人的 Webhook 地址</li>
+                                <li><code>secret</code>: 钉钉机器人的签名密钥</li>
+                                <li><code>enable_at</code>: 是否启用 @ 功能</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h4 class="font-semibold text-lg mb-2">Bark 配置</h4>
+                            <ul class="list-disc list-inside space-y-2 text-gray-600">
+                                <li><code>server</code>: Bark 服务器地址</li>
+                                <li><code>device_key</code>: 设备密钥</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-sm">
+                            <h4 class="font-semibold text-lg mb-2">HarmonyOS MeoW 配置</h4>
+                            <ul class="list-disc list-inside space-y-2 text-gray-600">
+                                <li><code>base_url</code>: API 基础地址</li>
+                                <li><code>user_ids</code>: 用户 ID 列表</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- 更新日志 -->
-        <section id="changelog" class="py-12 bg-white">
+        <section id="changelog" class="py-12">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h2 class="text-3xl font-extrabold text-gray-900 mb-12 text-center">
                     更新日志
@@ -127,12 +314,23 @@
     </footer>
 
     <script>
+        // 初始化 Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: {
+                curve: 'basis'
+            }
+        });
+
         // 加载并解析 Markdown 格式的更新日志
         async function loadChangelog() {
             try {
                 const response = await fetch('changelog.html');
                 const html = await response.text();
                 document.getElementById('changelog-content').innerHTML = html;
+                // 高亮代码块
+                Prism.highlightAll();
             } catch (error) {
                 console.error('Error loading changelog:', error);
             }
